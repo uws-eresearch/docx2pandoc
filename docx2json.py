@@ -64,13 +64,10 @@ def handle_run_note(run_id, footnotes, endnotes, notetype="foot"):
     else:
         return None
 
-    note = PF.Note([p2json(p, footnotes, endnotes) for p in ref])
-    if notetype == "foot":
-        return PF.Span(("", ["footnote"], []), [note])
-    elif notetype == "end":
-        return PF.Span(("", ["endnote"], []), [note])
-    else:
-        return None
+    note_blocks = [p2json(p, footnotes, endnotes) for p in ref]
+    note_div = PF.Div(("",["%snote" % notetype], []), note_blocks)
+    note = PF.Note([note_div])
+    return note
         
 
 def r2json(r, footnotes, endnotes):
