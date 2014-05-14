@@ -11,7 +11,7 @@ def get_indent(p):
         pPr =p._p.find('w:pPr', namespaces=p._p.nsmap)
         ind = pPr.find('w:ind', namespaces=p._p.nsmap)
         indent_amt = ind.get("{%s}left" % p._p.nsmap["w"])
-        if int(indent_amt) != 0:
+        if indent_amt != "0":
             return indent_amt
         else:
             return None
@@ -62,6 +62,7 @@ def doc2json(doc):
 
 def doc2meta(doc):
     return {"unMeta": {}}
+
 
 if __name__ == '__main__':
     docname = sys.argv[1]
