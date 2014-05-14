@@ -1,4 +1,5 @@
 import Text.Pandoc.JSON
+import Text.Pandoc
 import Data.List
 
 correctSpan :: Inline -> [Inline]
@@ -16,5 +17,13 @@ correctSpan (Span (ident, classes, kvs) ils)
       [Span (ident, classes, kvs) ils]
 correctSpan il = [il]
 
-main = toJSONFilter correctSpan
+correctDiv :: Block -> [Block]
+correctDiv (Div ("", [], []) blks) = blks
+correctDiv blk = [blk]
+
+
+foo :: Pandoc -> Pandoc
+foo = (bottomUp (concatMap correctDiv)) . (bottomUp (concatMap correctSpan))
+
+main = toJSONFilter foo
 
