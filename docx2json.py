@@ -8,6 +8,9 @@ import re
 from span_div_reducer import reduce_elem_list
 from span_div_replacer import tag_correct
 
+def get_rels_dict(doc):
+    return doc._document_part.rels
+
 def get_indent(p):
     try:
         pPr =p._p.find('w:pPr', namespaces=p._p.nsmap)
@@ -43,6 +46,9 @@ def _xml_p_to_docx_p(p_elt):
 def get_notes(doc, notetype="foot"):
     notepath = "/word/%snotes.xml" % notetype
     notes_blob = get_part(doc, notepath)
+    if notes_blob is None:
+        return None
+
     notes_tree = etree.fromstring(notes_blob)
     note_elts = notes_tree.findall("w:%snote" % notetype, namespaces=notes_tree.nsmap)
     note_dict = {note.get("{%s}id" % notes_tree.nsmap["w"]):
@@ -86,7 +92,13 @@ def r2json(r, footnotes, endnotes):
         if note:
             return [note]
 
-    split_text = re.split(r'( +)', r.text)
+    
+    try:
+        split_text = re.split(r'( +)', r.text)
+    except TypeError:
+        return []
+        #sys.exit("Oops: %r, %r" % (type(r), r._r.find('w:t', namespaces=r._r.nsmap).text))
+    
     inlines = [PF.Space() if re.match(r'( +)', i) 
                else PF.Str(i) 
                for i in split_text]
