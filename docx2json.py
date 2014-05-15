@@ -5,6 +5,7 @@ import sys
 import json
 import pandocfilters as PF
 import re
+from span_div_reducer import reduce_elem_list
 
 def get_indent(p):
     try:
@@ -110,6 +111,7 @@ def p2json(p, footnotes, endnotes):
     kvs     = get_extra_info(p)
     inlines = reduce(list.__add__, [r2json(r, footnotes, endnotes) 
                                     for r in p.runs], [])
+    inlines = reduce_elem_list(inlines)
     para    = PF.Para(inlines)
     if len(styles) > 0 or len(kvs) > 0:
         return PF.Div(("", styles, kvs), [para])
@@ -119,7 +121,7 @@ def p2json(p, footnotes, endnotes):
 def doc2json(doc):
     footnotes = get_notes(doc, "foot")
     endnotes  = get_notes(doc, "end")
-    return [p2json(p, footnotes, endnotes) for p in doc.paragraphs]
+    return reduce_elem_list([p2json(p, footnotes, endnotes) for p in doc.paragraphs])
 
 def doc2meta(doc):
     return {"unMeta": {}}
