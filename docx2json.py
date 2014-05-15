@@ -6,6 +6,7 @@ import json
 import pandocfilters as PF
 import re
 from span_div_reducer import reduce_elem_list
+from span_div_replacer import tag_correct
 
 def get_indent(p):
     try:
@@ -121,7 +122,9 @@ def p2json(p, footnotes, endnotes):
 def doc2json(doc):
     footnotes = get_notes(doc, "foot")
     endnotes  = get_notes(doc, "end")
-    return reduce_elem_list([p2json(p, footnotes, endnotes) for p in doc.paragraphs])
+    reduced = reduce_elem_list([p2json(p, footnotes, endnotes) for p in doc.paragraphs])
+    corrected = PF.walk(reduced, tag_correct, "", {})
+    return corrected
 
 def doc2meta(doc):
     return {"unMeta": {}}
@@ -130,7 +133,8 @@ def doc2meta(doc):
 if __name__ == '__main__':
     docname = sys.argv[1]
     doc = docx.Document(docname)
-    print json.dumps([doc2meta(doc), doc2json(doc)])
+    output = [doc2meta(doc), doc2json(doc)]
+    print json.dumps(output)
         
 
         
