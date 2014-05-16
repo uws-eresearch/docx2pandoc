@@ -50,9 +50,62 @@ class DocxPart(object):
 
 class Notes(DocxPart):
     def __init__(self, footnotes_element, endnotes_element, docx):
+        super(Notes, self).__init__(docx)
         self._footnotes = footnotes_element
         self._endnotes = endnotes_element
-        super(Notes, self).__init__(docx)
+        self._endnote_table = None
+        self._footnote_table = None
+
+    @property
+    def endnote_table(self):
+        if self._endnote_table is None:
+            self._endnote_table = {note.id:note for note in 
+                                   NoteCollection(self._endnotes, self)}
+        return self._endnote_table
+
+    @property
+    def footnote_table(self):
+        if self._footnote_table is None:
+            self._footnote_table = {note.id:note for note in 
+                                    NoteCollection(self._footnotes, self)}
+        return self._endnote_table
+
+    def get_endnote(self, note_id):
+        return self.endnote_table[note_id]
+
+    def get_footnote(self, note_id):
+        return self.footnote_table[note_id]
+
+
+
+class NoteCollection(object):
+
+    def __init__(self, notes_element, parent):
+        self._notes = notes_element
+        self.parent = parent
+
+    def __iter__(self):
+        if self._notes is None:
+            raise StopIteration
+        for elem in self._notes.getchildren():
+            yield Note(elem, self.parent)
+    
+class Note(object):
+
+    def __init__(self, note_element, parent):
+        self._note = note_element
+        self.parent = parent
+        self.note_type = self._note.tag[len(self._note.nsmap["w"]) + 2:]
+
+    @property
+    def id(self):
+        return self._note.get("{%s}id" % self._note.nsmap["w"])
+
+    def get_paragraphs(self):
+        docx = self.parent.docx
+        return [Paragraph(par_element, docx.body) for par_element in 
+                self._note.findall('w:p', namespaces=self._note.nsmap)]
+
 
 
 class Relationships(DocxPart):
