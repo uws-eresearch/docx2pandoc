@@ -60,14 +60,14 @@ class Notes(DocxPart):
     def endnote_table(self):
         if self._endnote_table is None:
             self._endnote_table = {note.id:note for note in 
-                                   NoteCollection(self._endnotes, self)}
+                                   EndNoteCollection(self._endnotes, self)}
         return self._endnote_table
 
     @property
     def footnote_table(self):
         if self._footnote_table is None:
             self._footnote_table = {note.id:note for note in 
-                                    NoteCollection(self._footnotes, self)}
+                                    FootNoteCollection(self._footnotes, self)}
         return self._endnote_table
 
     def get_endnote(self, note_id):
@@ -84,18 +84,28 @@ class NoteCollection(object):
         self._notes = notes_element
         self.parent = parent
 
+class FootNoteCollection(NoteCollection):
+
     def __iter__(self):
         if self._notes is None:
             raise StopIteration
         for elem in self._notes.getchildren():
-            yield Note(elem, self.parent)
+            yield FootNote(elem, self.parent)
+
+class EndNoteCollection(NoteCollection):
+
+    def __iter__(self):
+        if self._notes is None:
+            raise StopIteration
+        for elem in self._notes.getchildren():
+            yield EndNote(elem, self.parent)
+
     
 class Note(object):
 
     def __init__(self, note_element, parent):
         self._note = note_element
         self.parent = parent
-        self.note_type = self._note.tag[len(self._note.nsmap["w"]) + 2:]
 
     @property
     def id(self):
@@ -106,6 +116,17 @@ class Note(object):
         return [Paragraph(par_element, docx.body) for par_element in 
                 self._note.findall('w:p', namespaces=self._note.nsmap)]
 
+class EndNote(Note):
+
+    @property
+    def note_type(self):
+        return "endnote"
+
+class FootNote(Note):
+
+    @property
+    def note_type(self):
+        return "footnote"
 
 
 class Relationships(DocxPart):
@@ -182,6 +203,19 @@ class Paragraph(object):
                 self._p.xpath('./w:r|./w:hyperlink', namespaces=self._p.nsmap)]
 
     @property
+    def indent(self):
+        try:
+            ind = self._pPr.find('w:ind', namespaces=self._p.nsmap)
+            indent_amt = ind.get("{%s}left" % self._p.nsmap["w"])
+            if indent_amt != "0":
+                return indent_amt
+            else:
+                return None
+        except AttributeError:
+            return None
+
+
+    @property
     def style(self):
         if self._pPr is None: return None
         result = self._pPr.find('w:pStyle', namespaces=self._p.nsmap)
@@ -228,9 +262,38 @@ class HyperLink(RunContainer):
 class Run(RunContainer):
     def __init__(self, run_element, parent):
         self._run = self._container = run_element
-        self._rPr = self._run.find('.//w:rPr', namespaces=self._run.nsmap)
+        self._rPr = self._run.find('./w:rPr', namespaces=self._run.nsmap)
         self.parent = parent
 
+    def footnote(self):
+        ref = r._r.find("w:%footnoteReference", namespaces=self._run.nsmap)
+        if ref is not None:
+            return ref.get("{%s}id" % self._run.nsmap["w"])
+        else:
+            return None
+
+    def endnote(self):
+        ref = r._r.find("w:%endnoteReference", namespaces=self._run.nsmap)
+        if ref is not None:
+            return ref.get("{%s}id" % self._run.nsmap["w"])
+        else:
+            return None
+
+    def text(self):
+        t = self._run.find('./w:t', namespaces=self._run.nsmap)
+        if t is None:
+            return ''
+        else:
+            return t.text
+
+    def runtype(self):
+        if self.footnote() is not None:
+            return "footnote"
+        elif self.endnote() is not None:
+            return "endnote"
+        else:
+            return "text"
+        
     @property
     def is_bold(self):
         if self._rPr is None: return False
