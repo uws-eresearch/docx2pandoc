@@ -13,7 +13,7 @@ def run_container_to_json(rc, doc):
         ils = []
         for r in rc.get_runs():
             ils.extend(run_container_to_json(r, doc))
-        return [PF.Link([], (rc.target, ""))]
+        return [PF.Link(ils, (rc.target, ""))]
     else:                       
     # it must be a run. Note that we're keeping this in a separate
     # else block for now, in case I add other sorts of run containers

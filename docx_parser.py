@@ -268,7 +268,7 @@ class InternalHyperLink(HyperLink):
 
     @property
     def target(self):
-        return self._hyperlink.get('{%s}anchor' % self._hyperlink.nsmap["w"])
+        return '#%s' % self._hyperlink.get('{%s}anchor' % self._hyperlink.nsmap["w"])
 
 
 class Run(RunContainer):
