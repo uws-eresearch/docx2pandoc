@@ -6,10 +6,12 @@ class DocxError(Exception):
     pass
 
 class Docx(object):
-    def __init__(self, body, notes, rels):
-        self.body = body
-        self.notes = notes
-        self.rels = rels
+
+    def __init__(self):
+        self.body = None
+        self.notes = None
+        self.relationships = None
+        self.namespaces = None
 
     @classmethod
     def read_file(klass, filepath):
@@ -33,28 +35,84 @@ class Docx(object):
                 re.match("^word/_rels/.*\.rel", info.filename)]
         rels_elements = [etree.parse(rel).getroot() for rel in rels]
 
-        return klass(Body(body_element), 
-                     Notes(footnotes_element, endnotes_element),
-                     Rels(rels_elements))
+        obj = klass()
+        obj.body = Body(body_element, obj)
+        obj.notes = Notes(footnotes_element, endnotes_element, obj)
+        obj.relationships = Relationships(rels_elements, obj)
+        obj.namespaces = doc_element.nsmap
+        return obj
 
-        
-class Notes(object):
-    def __init__(self, footnotes_element, endnotes_element):
-        self._footnotes = footnotes_element
-        self._endnotes = endnotes_element
+class DocxPart(object):
 
-class Rels(object):
-
-    def __init__(self, rels):
-        self._rels = rels
+    def __init__(self, docx):
+        self.docx = docx
     
 
-class Body(object):
-    def __init__(self, body_element):
+class Notes(DocxPart):
+    def __init__(self, footnotes_element, endnotes_element, docx):
+        self._footnotes = footnotes_element
+        self._endnotes = endnotes_element
+        super(Notes, self).__init__(docx)
+
+
+class Relationships(DocxPart):
+
+    def __init__(self, rel_lst, docx):
+        self._rel_lst = rel_lst
+        self._relationship_table = None
+        super(Relationships, self).__init__(docx)
+
+    @property
+    def relationship_table(self):
+        if self._relationship_table is None:
+            self._relationship_table = {r.id: r for r in self._gen_relationships()}
+        return self._relationship_table
+
+    def get_id(self, Id):
+        return self.relationship_table[Id]
+
+    def _gen_relationships(self):
+        for rel_lst in self._rel_lst:
+            for rel_element in rel_lst:
+                yield Relationship(rel_element, self)
+        
+
+class Relationship(object):
+
+    def __init__(self, rel_element, parent):
+        self._rel = rel_element
+        self._attrib = self._rel.attrib
+        self.parent = parent
+
+    @property
+    def id(self):
+        return self._rel.get("Id")
+
+    @property
+    def target_mode(self):
+        return self._rel.get("TargetMode")
+
+    @property
+    def target(self):
+        return self._rel.get("Target")
+
+    @property
+    def type(self):
+        nstype = self._rel.get("Type")
+        ns = self.parent.docx.namespaces["r"]
+        if '/'.join(nstype.split('/')[:-1]) == ns:
+            return nstype.split('/')[-1]
+        else:
+            return nstype
+
+
+class Body(DocxPart):
+    def __init__(self, body_element, docx):
         self._body = body_element
+        super(Body, self).__init__(docx)
 
     def get_paragraphs(self):
-        return [Paragraph(par_element) for par_element in 
+        return [Paragraph(par_element, self.parent) for par_element in 
                 self._body.findall('w:p', namespaces=self._body.nsmap)]
 
 
@@ -96,6 +154,10 @@ class RunContainer(object):
 class HyperLink(RunContainer):
     def __init__(self, hyperlink_element):
         self._hyperlink = self._container = hyperlink_element
+
+    @property
+    def id(self):
+        return self._hyperlink.get('{%s}id' % self._hyperlink.nsmap["r"])
         
         
 
