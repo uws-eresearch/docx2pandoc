@@ -68,7 +68,7 @@ class Notes(DocxPart):
         if self._footnote_table is None:
             self._footnote_table = {note.id:note for note in 
                                     FootNoteCollection(self._footnotes, self)}
-        return self._endnote_table
+        return self._footnote_table
 
     def get_endnote(self, note_id):
         return self.endnote_table[note_id]
@@ -232,7 +232,10 @@ class RunContainer(object):
         if element.tag == ("{%s}r" % element.nsmap['w']):
             return Run(element, parent)
         elif element.tag == ("{%s}hyperlink" % element.nsmap['w']):
-            return HyperLink(element, parent)
+            if element.get("{%s}anchor" % element.nsmap["w"]) is not None:
+                return InternalHyperLink(element, parent)
+            else:
+                return ExternalHyperLink(element, parent)
         else:
             raise DocxError("%r not supported run container type" % element)
 
@@ -245,6 +248,8 @@ class HyperLink(RunContainer):
     def __init__(self, hyperlink_element, parent):
         self._hyperlink = self._container = hyperlink_element
         self.parent = parent
+
+class ExternalHyperLink(HyperLink):
 
     @property
     def id(self):
@@ -259,37 +264,45 @@ class HyperLink(RunContainer):
     def target(self):
         return self.relationship.target
 
+class InternalHyperLink(HyperLink):
+
+    @property
+    def target(self):
+        return self._hyperlink.get('{%s}anchor' % self._hyperlink.nsmap["w"])
+
+
 class Run(RunContainer):
     def __init__(self, run_element, parent):
         self._run = self._container = run_element
         self._rPr = self._run.find('./w:rPr', namespaces=self._run.nsmap)
         self.parent = parent
 
-    def footnote(self):
-        ref = r._r.find("w:%footnoteReference", namespaces=self._run.nsmap)
+    def get_footnote(self):
+        ref = self._run.find("w:footnoteReference", namespaces=self._run.nsmap)
         if ref is not None:
             return ref.get("{%s}id" % self._run.nsmap["w"])
         else:
             return None
 
-    def endnote(self):
-        ref = r._r.find("w:%endnoteReference", namespaces=self._run.nsmap)
+    def get_endnote(self):
+        ref = self._run.find("w:endnoteReference", namespaces=self._run.nsmap)
         if ref is not None:
             return ref.get("{%s}id" % self._run.nsmap["w"])
         else:
             return None
 
-    def text(self):
+    def get_text(self):
         t = self._run.find('./w:t', namespaces=self._run.nsmap)
         if t is None:
             return ''
         else:
             return t.text
-
+    
+    @property
     def runtype(self):
-        if self.footnote() is not None:
+        if self.get_footnote() is not None:
             return "footnote"
-        elif self.endnote() is not None:
+        elif self.get_endnote() is not None:
             return "endnote"
         else:
             return "text"

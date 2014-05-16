@@ -1,6 +1,5 @@
-import docx
+import docx_parser
 from lxml import etree
-import zipfile
 import sys
 import json
 import pandocfilters as PF
@@ -8,145 +7,104 @@ import re
 from span_div_reducer import reduce_elem_list
 from span_div_replacer import tag_correct
 
-def get_rels_dict(doc):
-    return doc._document_part.rels
+def run_container_to_json(rc, doc):
 
-def get_indent(p):
-    try:
-        pPr =p._p.find('w:pPr', namespaces=p._p.nsmap)
-        ind = pPr.find('w:ind', namespaces=p._p.nsmap)
-        indent_amt = ind.get("{%s}left" % p._p.nsmap["w"])
-        if indent_amt != "0":
-            return indent_amt
+    if isinstance(rc, docx_parser.HyperLink):
+        ils = []
+        for r in rc.get_runs():
+            ils.extend(run_container_to_json(r, doc))
+        return [PF.Link([], (rc.target, ""))]
+    else:                       
+    # it must be a run. Note that we're keeping this in a separate
+    # else block for now, in case I add other sorts of run containers
+    # later.
+        if rc.runtype == "footnote":
+            note_id = rc.get_footnote()
+            note = doc.notes.get_footnote(note_id)
+            pars = note.get_paragraphs()
+            block = PF.Div(("", ["footnote"], []), [para_to_json(p, doc) for p in pars])
+            return [PF.Note([block])]
+        elif rc.runtype == "endnote":
+            note_id = rc.get_endnote()
+            note = doc.notes.get_endnote(note_id)
+            pars = note.get_paragraphs()
+            block = PF.Div(("", ["endnote"], []), [para_to_json(p, doc) for p in pars])
+            return [PF.Note([block])]
         else:
-            return None
-    except AttributeError:
-        return None
+            text = rc.get_text()
+            try:
+                split_text = re.split(r'( +)', text)
+            except TypeError:
+                return []
 
-def get_extra_info(p):
-    extra_info = []
-    indent_amt = get_indent(p)
-    if indent_amt:
-        extra_info.append(("indent", indent_amt))
-    return extra_info
+            
+            inlines = [PF.Space() if re.match(r'( +)', i) 
+                       else PF.Str(i) 
+                       for i in split_text]
+            attr = []
+            kvs = []
+            if rc.is_bold:
+                attr.append("strong")
+            if rc.is_italic:
+                attr.append("emph")
+            if rc.is_smallCaps:
+                attr.append("smallcaps")
+            if rc.is_strike:
+                attr.append("strikeout")
+            # if rc.underline is not None:
+            #     attr.append("underline")
+            #     kvs.append(("ul_style", rc.underline))
 
-def get_part(doc, path):
-    parts = doc._package.parts
-    try:
-        part = [p for p in parts if p.partname==path][0]
-        return part.blob
-    except IndexError:
-        return None
+            if len(attr) == len(kvs) == 0:
+                return inlines
+            else:
+                return [PF.Span(("", attr, []), inlines)]
 
-def _xml_p_to_docx_p(p_elt):
-    oxml_p = docx.oxml.shared.oxml_fromstring(etree.tostring(p_elt))
-    return docx.text.Paragraph(oxml_p)
-    
+def get_extra_para_info(p, doc):
+    kvs = []
+    if p.indent is not None:
+        kvs.append(("indent", p.indent))
+    return kvs
 
-def get_notes(doc, notetype="foot"):
-    notepath = "/word/%snotes.xml" % notetype
-    notes_blob = get_part(doc, notepath)
-    if notes_blob is None:
-        return None
-
-    notes_tree = etree.fromstring(notes_blob)
-    note_elts = notes_tree.findall("w:%snote" % notetype, namespaces=notes_tree.nsmap)
-    note_dict = {note.get("{%s}id" % notes_tree.nsmap["w"]):
-                 [_xml_p_to_docx_p(p) for p in 
-                  note.findall("w:p", namespaces=notes_tree.nsmap)]
-                 for note in notes_tree}
-    return note_dict
-
-def run_is_note(r, notetype="foot"):
-    ref = r._r.find("w:%snoteReference" % notetype, namespaces=r._r.nsmap)
-    if ref is not None:
-        return ref.get("{%s}id" % r._r.nsmap["w"])
+def para_to_json(p, doc):
+    if p.style is None:
+        styles = []
     else:
-        return None
-
-def handle_run_note(run_id, footnotes, endnotes, notetype="foot"):
-    if notetype == "foot":
-        ref = footnotes[run_id]
-    elif notetype == "end":
-        ref = endnotes[run_id]
-    else:
-        return None
-
-    note_blocks = [p2json(p, footnotes, endnotes) for p in ref]
-    note_div = PF.Div(("",["%snote" % notetype], []), note_blocks)
-    note = PF.Note([note_div])
-    return note
-        
-
-def r2json(r, footnotes, endnotes):
-    # First we check whether the run is a footnote or an endnote.
-    footnote_id = run_is_note(r, "foot")
-    if footnote_id:
-        note = handle_run_note(footnote_id, footnotes, endnotes, "foot")
-        if note:
-            return [note]
-
-    endnote_id = run_is_note(r, "end")
-    if endnote_id:
-        note = handle_run_note(endnote_id, footnotes, endnotes, "end")
-        if note:
-            return [note]
-
-    
-    try:
-        split_text = re.split(r'( +)', r.text)
-    except TypeError:
-        return []
-        #sys.exit("Oops: %r, %r" % (type(r), r._r.find('w:t', namespaces=r._r.nsmap).text))
-    
-    inlines = [PF.Space() if re.match(r'( +)', i) 
-               else PF.Str(i) 
-               for i in split_text]
-    attr = []
-    if r.bold:
-        attr.append("strong")
-    if r.italic:
-        attr.append("emph")
-    if r.small_caps:
-        attr.append("smallcaps")
-    if r.underline:
-        attr.append("underline")
-    if r.strike:
-        attr.append("strikeout")
-
-    if len(attr) > 0:
-        return [PF.Span(("", attr, []), inlines)]
-    else:
-        return inlines
-
-def p2json(p, footnotes, endnotes):
-    styles  = [s for s in p.style.split() if s != "Normal"]
-    kvs     = get_extra_info(p)
-    inlines = reduce(list.__add__, [r2json(r, footnotes, endnotes) 
-                                    for r in p.runs], [])
-    inlines = reduce_elem_list(inlines)
+        styles  = [s for s in p.style.split() if s != "Normal"]
+    kvs     = get_extra_para_info(p, doc)
+    first_pass_inlines = reduce(list.__add__, 
+                                [run_container_to_json(rc, doc) 
+                                 for rc in p.get_run_containers()], 
+                                [])
+    inlines = reduce_elem_list(first_pass_inlines)
     para    = PF.Para(inlines)
     if len(styles) > 0 or len(kvs) > 0:
         return PF.Div(("", styles, kvs), [para])
     else:
         return para
+    
 
 def doc2json(doc):
-    footnotes = get_notes(doc, "foot")
-    endnotes  = get_notes(doc, "end")
-    reduced = reduce_elem_list([p2json(p, footnotes, endnotes) for p in doc.paragraphs])
-    corrected = PF.walk(reduced, tag_correct, "", {})
-    return corrected
+    reduced = reduce_elem_list([para_to_json(p, doc) 
+                                for p 
+                                in doc.body.get_paragraphs()])
+    return reduced
 
 def doc2meta(doc):
     return {"unMeta": {}}
 
+def filter(doc):
+    whole_doc = [doc2meta(doc), doc2json(doc)]
+    # Annoying, but we need it to be in proper json form, but I need
+    # to use tuples for some of the reducing operations above.
+    sanitized_output = json.loads(json.dumps(whole_doc))
+    return PF.walk(sanitized_output, tag_correct, "", {})
 
 if __name__ == '__main__':
     docname = sys.argv[1]
-    doc = docx.Document(docname)
-    output = [doc2meta(doc), doc2json(doc)]
-    print json.dumps(output)
+    doc = docx_parser.Docx.read_file(docname)
+    filtered_doc = filter(doc)
+    print json.dumps(filtered_doc)
         
 
         
