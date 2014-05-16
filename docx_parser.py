@@ -2,6 +2,9 @@ from lxml import etree
 import zipfile
 import re
 
+class DocxError(Exception):
+    pass
+
 class Docx(object):
     def __init__(self, body, notes, rels):
         self.body = body
@@ -61,7 +64,7 @@ class Paragraph(object):
         self._pPr = self._p.find('.//w:pPr', namespaces=self._p.nsmap)
 
     def get_run_containers(self):
-        return [RunContainer(rc_elem) for rc_elem in 
+        return [RunContainer.new(rc_elem) for rc_elem in 
                 self._p.xpath('./w:r|./w:hyperlink', namespaces=self._p.nsmap)]
 
     @property
@@ -76,17 +79,29 @@ class Paragraph(object):
 
 class RunContainer(object):
 
-    def __init__(self, container_element):
-        self._container = container_element
+    @classmethod
+    def new(self, element):
+        if element.tag == ("{%s}r" % element.nsmap['w']):
+            return Run(element)
+        elif element.tag == ("{%s}hyperlink" % element.nsmap['w']):
+            return HyperLink(element)
+        else:
+            raise DocxError("%r not supported run container type" % element)
 
     def get_runs(self):
         return [Run(elem) for elem 
                 in 
                 self._container.getiterator("{%s}r" % self._container.nsmap["w"])]
 
-class Run(object):
+class HyperLink(RunContainer):
+    def __init__(self, hyperlink_element):
+        self._hyperlink = self._container = hyperlink_element
+        
+        
+
+class Run(RunContainer):
     def __init__(self, run_element):
-        self._run = run_element
+        self._run = self._container = run_element
         self._rPr = self._run.find('.//w:rPr', namespaces=self._run.nsmap)
 
     @property
