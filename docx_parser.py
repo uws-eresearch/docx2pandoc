@@ -42,6 +42,7 @@ class Docx(object):
         obj.body = Body(body_element, obj)
         obj.notes = Notes(footnotes_element, endnotes_element, obj)
         obj.relationships = Relationships(rels_elements, obj)
+        obj.numbering = Numbering(numbering_element, obj)
         obj.namespaces = doc_element.nsmap
         return obj
 
@@ -52,11 +53,11 @@ class DocxPart(object):
 
 class Numbering(DocxPart):
     def __init__(self, numbering_element, docx):
-        super(Notes, self).__init__(docx)
+        super(Numbering, self).__init__(docx)
         self._numbering = numbering_element
 
     def get_nums(self):
-        nums = self.findall('w:num', namespaces=self._numbering.nsmap)
+        nums = self._numbering.findall('w:num', namespaces=self._numbering.nsmap)
         return [Num(n, self) for n in nums]
 
     def get_abstract_num_by_id(self, s):
@@ -77,14 +78,11 @@ class Num(object):
 
     @property
     def id(self):
-        return self._num.get("{%s}numId" % self._num.nsmap)
+        return self._num.get("{%s}numId" % self._num.nsmap["w"])
 
     def get_abstract_num(self):
         abs_num_id_elem = self._num.find('w:abstractNumId', namespaces=self._num.nsmap)
         return abs_num_id_elem.get("{%s}val" % self._num.nsmap["w"])
-
-    
-        
 
 class AbstractNumber(object):
 
@@ -280,6 +278,16 @@ class Paragraph(object):
                 self._p.xpath('./w:r|./w:hyperlink', namespaces=self._p.nsmap)]
 
     @property
+    def _numPr(self):
+        if self._pPr is None:
+            return None
+        return self._pPr.find('w:numPr', namespaces=self._pPr.nsmap)
+
+    @property
+    def is_list_item(self):
+        return not (self._numPr is None)
+
+    @property
     def indent(self):
         try:
             ind = self._pPr.find('w:ind', namespaces=self._p.nsmap)
@@ -291,6 +299,21 @@ class Paragraph(object):
         except AttributeError:
             return None
 
+    @property
+    def level(self):
+        if self._numPr is None:
+            return None
+        else:
+            elem = self._numPr.find('w:ilvl', namespaces=self._numPr.nsmap)
+            return elem.get("{%s}val" % self._numPr.nsmap["w"])
+
+    def get_num(self):
+        if self._numPr is None:
+            return None
+        else:
+            elem = self._numPr.find('w:numId', namespaces=self._numPr.nsmap)
+            num_id = elem.get("{%s}val" % self._numPr.nsmap["w"])
+            return self.parent.docx.numbering.get_num_by_id(num_id)
 
     @property
     def style(self):
