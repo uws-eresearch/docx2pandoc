@@ -11,6 +11,7 @@ class Docx(object):
         self.body = None
         self.notes = None
         self.relationships = None
+        self.numbering = None
         self.namespaces = None
 
     @classmethod
@@ -46,7 +47,76 @@ class DocxPart(object):
 
     def __init__(self, docx):
         self.docx = docx
+
+class Numbering(DocxPart):
+    def __init__(self, numbering_element, docx):
+        super(Notes, self).__init__(docx)
+        self._numbering = numbering_element
+
+    def get_abstract_num_by_id(self, s):
+        abs_num_element = self._numbering.find("./w:abstractNum[@w:abstractNumId='%s']" % s, 
+                                               namespaces=self._numbering.nsmap)
+        return AbstractNumber(abs_num_element, self)
+
+    def get_num_by_id(self, s):
+        num_element = self._numbering.find("./w:num[@w:numId='%s']" % s, 
+                                           namespaces=self._numbering.nsmap)
+        return Num(num_element, self)
+
+class Num(object):
+
+    def __init__(self, num_element, parent):
+        self._num = num_element
+        self.parent = parent
+
+    @property
+    def id(self):
+        return self._num.get("{%s}numId" % self._num.nsmap)
+
+    def get_abstract_num(self):
+        abs_num_tag = self._num.find('w:abstractNumId', namespaces=self._num.nsmap)
+
     
+        
+
+class AbstractNumber(object):
+
+    def __init__(self, abstract_num_element, parent):
+        self._abstract_num = abstract_num_element
+        self.parent = parent
+
+    @property
+    def id(self):
+        return self._abstract_num.get('{%s}abstractNumId' % self._abstract_num.nsmap['w'])
+
+    @property
+    def levels(self):
+        return [Level(l) for l in 
+                self._abstract_num.findall('w:lvl', 
+                                           namespaces=self._abstract_num.nsmap)]
+
+    def get_level(self, s):
+        level_element = self._abstract_num.find("./w:lvl[@w:ilvl='%s']" % s, 
+                                                namespaces=self._abstract_num.nsmap)
+        return Level(level_element)
+
+class Level(object):
+
+    def __init__(self, level_element):
+        self._level = level_element
+        self.level = self._level.get('{%s}ilvl' % self._level.nsmap['w'])
+
+
+    @property
+    def start(self):
+        s = self._level.find("w:start", namespaces=self._level.nsmap)
+        return s.get("{%s}val" % self._level.nsmap["w"])
+
+    @property
+    def format(self):
+        s = self._level.find("w:numFmt", namespaces=self._level.nsmap)
+        return s.get("{%s}val" % self._level.nsmap["w"])
+
 
 class Notes(DocxPart):
     def __init__(self, footnotes_element, endnotes_element, docx):
