@@ -80,9 +80,12 @@ class Num(object):
     def id(self):
         return self._num.get("{%s}numId" % self._num.nsmap["w"])
 
-    def get_abstract_num(self):
+    def get_abstract_num_id(self):
         abs_num_id_elem = self._num.find('w:abstractNumId', namespaces=self._num.nsmap)
         return abs_num_id_elem.get("{%s}val" % self._num.nsmap["w"])
+
+    def get_abstract_num(self):
+        return self.parent.get_abstract_num_by_id(self.get_abstract_num_id())
 
 class AbstractNumber(object):
 
