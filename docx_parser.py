@@ -36,6 +36,8 @@ class Docx(object):
                 re.match("^word/_rels/.*\.rel", info.filename)]
         rels_elements = [etree.parse(rel).getroot() for rel in rels]
 
+        numbering_element = etree.parse(zf.open("word/numbering.xml")).getroot()
+
         obj = klass()
         obj.body = Body(body_element, obj)
         obj.notes = Notes(footnotes_element, endnotes_element, obj)
@@ -52,6 +54,10 @@ class Numbering(DocxPart):
     def __init__(self, numbering_element, docx):
         super(Notes, self).__init__(docx)
         self._numbering = numbering_element
+
+    def get_nums(self):
+        nums = self.findall('w:num', namespaces=self._numbering.nsmap)
+        return [Num(n, self) for n in nums]
 
     def get_abstract_num_by_id(self, s):
         abs_num_element = self._numbering.find("./w:abstractNum[@w:abstractNumId='%s']" % s, 
@@ -74,7 +80,8 @@ class Num(object):
         return self._num.get("{%s}numId" % self._num.nsmap)
 
     def get_abstract_num(self):
-        abs_num_tag = self._num.find('w:abstractNumId', namespaces=self._num.nsmap)
+        abs_num_id_elem = self._num.find('w:abstractNumId', namespaces=self._num.nsmap)
+        return abs_num_id_elem.get("{%s}val" % self._num.nsmap["w"])
 
     
         
