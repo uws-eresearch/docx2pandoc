@@ -114,10 +114,11 @@ class Level(object):
         self._level = level_element
         self.level = self._level.get('{%s}ilvl' % self._level.nsmap['w'])
 
-
     @property
     def start(self):
         s = self._level.find("w:start", namespaces=self._level.nsmap)
+        if s is None:
+            return None
         return s.get("{%s}val" % self._level.nsmap["w"])
 
     @property
@@ -125,6 +126,10 @@ class Level(object):
         s = self._level.find("w:numFmt", namespaces=self._level.nsmap)
         return s.get("{%s}val" % self._level.nsmap["w"])
 
+    @propety
+    def text(self):
+        s = self._level.find("w:lvlText", namespaces=self._level.nsmap)
+        return s.get("{%s}val" % self._level.nsmap["w"])
 
 class Notes(DocxPart):
     def __init__(self, footnotes_element, endnotes_element, docx):
@@ -153,7 +158,6 @@ class Notes(DocxPart):
 
     def get_footnote(self, note_id):
         return self.footnote_table[note_id]
-
 
 
 class NoteCollection(object):
@@ -269,7 +273,6 @@ class Body(DocxPart):
         return [Paragraph(par_element, self) for par_element in 
                 self._body.findall('w:p', namespaces=self._body.nsmap)]
 
-
 class Paragraph(object):
     def __init__(self, p_element, parent):
         self._p = p_element
@@ -288,7 +291,7 @@ class Paragraph(object):
 
     @property
     def is_list_item(self):
-        return not (self._numPr is None)
+        return (self._numPr is not None)
 
     @property
     def indent(self):

@@ -63,7 +63,7 @@ def run_container_to_json(rc, doc):
 def get_extra_para_info(p, doc):
     kvs = []
     if p.indent is not None:
-        kvs.append(("indent", p.indent))
+        kvs.append(["indent", p.indent])
     return kvs
 
 def para_to_json(p, doc):
@@ -72,6 +72,7 @@ def para_to_json(p, doc):
     else:
         styles  = [s for s in p.style.split() if s != "Normal"]
     kvs     = get_extra_para_info(p, doc)
+
     first_pass_inlines = reduce(list.__add__, 
                                 [run_container_to_json(rc, doc) 
                                  for rc in p.get_run_containers()], 
