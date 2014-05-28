@@ -18,17 +18,19 @@ def get_elems(cont):
 
     
 def combine_attr(attr1, attr2):
+    kvs1 = [tuple(l) for l in attr1[2]]
+    kvs2 = [tuple(l) for l in attr2[2]]
     shared_attr = ("", 
                    list(set(attr1[1]).intersection(attr2[1])),
-                   list(set(attr1[2]).intersection(attr2[2])))
+                   list(set(kvs1).intersection(kvs2)))
 
     remaining_attr1 = (attr1[0],
                        list(set(attr1[1]).difference(shared_attr[1])),
-                       list(set(attr1[2]).difference(shared_attr[2])))
+                       list(set(kvs1).difference(shared_attr[2])))
 
     remaining_attr2 = (attr2[0],
                        list(set(attr2[1]).difference(shared_attr[1])),
-                       list(set(attr2[2]).difference(shared_attr[2])))
+                       list(set(kvs2).difference(shared_attr[2])))
 
     return (shared_attr, remaining_attr1, remaining_attr2)
 

@@ -77,19 +77,37 @@ def para_to_json(p, doc):
                                 [run_container_to_json(rc, doc) 
                                  for rc in p.get_run_containers()], 
                                 [])
-    inlines = reduce_elem_list(first_pass_inlines)
+    #inlines = reduce_elem_list(first_pass_inlines)
+    inlines = first_pass_inlines
     para    = PF.Para(inlines)
     if len(styles) > 0 or len(kvs) > 0:
-        return PF.Div(("", styles, kvs), [para])
+        out = PF.Div(("", styles, kvs), [para])
     else:
-        return para
+        out = para
+
+    # Finally, we have to deal with the list item stuff, which needs
+    # its own div, that can't be stacked.
+    if p.is_list_item:
+        level = p.level
+        num   = p.get_num()
+        num_id = num.id
+        frmt = num.get_abstract_num().get_level(level).format
+        txt  = num.get_abstract_num().get_level(level).text
+        return PF.Div(("", ["list-item"], 
+                       [["level", str(level)], ["num-id", str(num_id)], 
+                        ["format", frmt], ["text", txt]]), [out])
+    else:
+        return out
+                    
     
 
 def doc2json(doc):
-    reduced = reduce_elem_list([para_to_json(p, doc) 
-                                for p 
-                                in doc.body.get_paragraphs()])
-    return reduced
+    out = [para_to_json(p, doc) for p in doc.body.get_paragraphs()]
+
+    # reduced = reduce_elem_list([para_to_json(p, doc) 
+    #                             for p 
+    #                             in doc.body.get_paragraphs()])
+    return out
 
 def doc2meta(doc):
     return {"unMeta": {}}
@@ -99,7 +117,8 @@ def filter(doc):
     # Annoying, but we need it to be in proper json form, but I need
     # to use tuples for some of the reducing operations above.
     sanitized_output = json.loads(json.dumps(whole_doc))
-    return PF.walk(sanitized_output, tag_correct, "", {})
+    return sanitized_output
+    #return PF.walk(sanitized_output, tag_correct, "", {})
 
 if __name__ == '__main__':
     docname = sys.argv[1]

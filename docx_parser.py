@@ -112,7 +112,7 @@ class Level(object):
 
     def __init__(self, level_element):
         self._level = level_element
-        self.level = self._level.get('{%s}ilvl' % self._level.nsmap['w'])
+        self.level = int(self._level.get('{%s}ilvl' % self._level.nsmap['w']))
 
     @property
     def start(self):
@@ -126,7 +126,7 @@ class Level(object):
         s = self._level.find("w:numFmt", namespaces=self._level.nsmap)
         return s.get("{%s}val" % self._level.nsmap["w"])
 
-    @propety
+    @property
     def text(self):
         s = self._level.find("w:lvlText", namespaces=self._level.nsmap)
         return s.get("{%s}val" % self._level.nsmap["w"])
@@ -273,6 +273,7 @@ class Body(DocxPart):
         return [Paragraph(par_element, self) for par_element in 
                 self._body.findall('w:p', namespaces=self._body.nsmap)]
 
+
 class Paragraph(object):
     def __init__(self, p_element, parent):
         self._p = p_element
@@ -311,7 +312,10 @@ class Paragraph(object):
             return None
         else:
             elem = self._numPr.find('w:ilvl', namespaces=self._numPr.nsmap)
-            return elem.get("{%s}val" % self._numPr.nsmap["w"])
+            try:
+                return int(elem.get("{%s}val" % self._numPr.nsmap["w"]))
+            except TypeError:
+                raise DocxError("got illegal level")
 
     def get_num(self):
         if self._numPr is None:
