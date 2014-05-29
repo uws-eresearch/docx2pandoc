@@ -1,7 +1,7 @@
 import Text.Pandoc.JSON
 import Text.Pandoc
-import Control.Monad.State
 import Data.List
+import Control.Monad
 import Data.Maybe
 
 isListItem :: Block -> Bool
@@ -10,7 +10,7 @@ isListItem blk = False
 
 getLevel :: Block -> Maybe Integer
 getLevel b@(Div (_, _, kvs) _) =  liftM read $ lookup "level" kvs
-getLevel b = Just (-1)
+getLevel b = Nothing
 
 getLevelN :: Block -> Integer
 getLevelN b = case getLevel b of
@@ -19,12 +19,44 @@ getLevelN b = case getLevel b of
 
 getNumId :: Block -> Maybe Integer
 getNumId b@(Div (_, _, kvs) _) =  liftM read $ lookup "num-id" kvs
+getNumId b = Nothing
 
 getNumIdN :: Block -> Integer
 getNumIdN b = case getNumId b of
   Just n -> n
   Nothing -> -1
 
+data ListType = Itemized | Enumerated ListAttributes
+
+listStyleMap :: [(String, ListNumberStyle)]
+listStyleMap = [("upperLetter", UpperAlpha),
+                ("lowerLetter", LowerAlpha),
+                ("upperRoman", UpperRoman),
+                ("lowerRoman", LowerRoman),
+                ("decimal", Decimal)]
+
+listDelimMap :: [(String, ListNumberDelim)]
+listDelimMap = [("%1)", OneParen),
+                ("(%1)", TwoParens),
+                ("%1.", Period)]
+
+getListType :: Block -> Maybe ListType
+getListType b@(Div (_, _, kvs) _) | isListItem b =
+  let
+    frmt = lookup "format" kvs
+    txt  = lookup "text" kvs
+  in
+   case frmt of
+     Just "bullet" -> Just Itemized
+     Just f        ->
+       case txt of
+         Just t -> Just $ Enumerated (1,
+                  fromMaybe DefaultStyle (lookup f listStyleMap),
+                  fromMaybe DefaultDelim (lookup t listDelimMap))
+         Nothing -> Nothing
+     _ -> Nothing
+getListType b = Nothing
+                  
 separateBlocks' :: Block -> [[Block]] -> [[Block]]
 separateBlocks' blk ([] : []) = [[blk]]
 separateBlocks' b@(BulletList _) acc = (init acc) ++ [(last acc) ++ [b]]
