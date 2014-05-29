@@ -25,6 +25,13 @@ getNumIdN b = case getNumId b of
   Just n -> n
   Nothing -> -1
 
+separateBlocks' :: [Block] -> [[Block]]
+separateBlocks' [] = [[]]
+separateBlocks' (b : blks) = [b] : (separateBlocks' blks)
+
+separateBlocks :: [[Block]] -> [[Block]]
+separateBlocks b = concatMap separateBlocks' b
+
 flatToBullets' :: Integer -> [(Integer, Block)] -> [Block]
 flatToBullets' _ [] = []
 flatToBullets' num xs@((n, b) : elems)
@@ -32,7 +39,7 @@ flatToBullets' num xs@((n, b) : elems)
   | otherwise = 
     let (children, remaining) = span (\(m, _) -> m > num) xs
     in
-     (BulletList [flatToBullets' n children]) : (flatToBullets' num remaining)
+     (BulletList (separateBlocks [flatToBullets' n children])) : (flatToBullets' num remaining)
 
 flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
