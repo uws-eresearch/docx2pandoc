@@ -66,6 +66,14 @@ def get_extra_para_info(p, doc):
         kvs.append(["indent", p.indent])
     return kvs
 
+def table_to_json(tbl, doc):
+    rows = [r.get_cells() for r in tbl.get_rows()]
+    rows = [[[para_to_json(p, doc) for p in c.get_paragraphs()] for c in r] for r in rows]
+    header = rows[0]
+    alignment = PF.elt("AlignDefault", 1)([])
+    return PF.Table([], [alignment] * len(header), [0.0] * len(header), header, rows[1:])
+
+
 def para_to_json(p, doc):
     if p.style is None:
         styles = []
@@ -104,10 +112,14 @@ def para_to_json(p, doc):
     else:
         return out
                     
-    
+def body_elem_to_json(elem, doc):
+    if isinstance(elem, docx_parser.Paragraph):
+        return para_to_json(elem, doc)
+    elif isinstance(elem, docx_parser.Table):
+        return table_to_json(elem, doc)
 
 def doc2json(doc):
-    out = [para_to_json(p, doc) for p in doc.body.get_paragraphs()]
+    out = [body_elem_to_json(p, doc) for p in doc.body.get_paragraphs()]
 
     # reduced = reduce_elem_list([para_to_json(p, doc) 
     #                             for p 

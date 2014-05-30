@@ -366,7 +366,7 @@ class TableCell(object):
     def __init__(self, cell_element, parent):
         self._cell = cell_element
         self.parent = parent
-        self._tcPr = self._row.find("w:tcPr", namespaces=self._row.nsmap)
+        self._tcPr = self._cell.find("w:tcPr", namespaces=self._cell.nsmap)
 
     def get_paragraphs(self):
         body = self.parent.parent.parent
