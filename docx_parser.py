@@ -270,9 +270,12 @@ class Body(DocxPart):
         super(Body, self).__init__(docx)
 
     def get_paragraphs(self):
-        return [Paragraph(par_element, self) for par_element in 
-                self._body.findall('w:p', namespaces=self._body.nsmap)]
-
+        for element in self._body.xpath('./w:p|./w:tbl', 
+                                        namespaces=self._body.nsmap):
+            if element.tag == ("{%s}p" % element.nsmap['w']):
+                yield Paragraph(element, self)
+            else:
+                yield Table(element, self)
 
 class Paragraph(object):
     def __init__(self, p_element, parent):
@@ -333,6 +336,42 @@ class Paragraph(object):
             return None
         else:
             return result.get("{%s}val" % result.nsmap["w"])
+
+
+class Table(object):
+
+    def __init__(self, tbl_element, parent):
+        self._tbl = tbl_element
+        self.parent = parent
+        self._tblPr = self._tbl.find("w:tblPr", namespaces=self._tbl.nsmap)
+        self._tblGrid = self._tbl.find("w:tblGrid", namespaces=self._tbl.nsmap)
+
+    def get_rows(self):
+        for row in self._tbl.findall("w:tr", namespaces=self._tbl.nsmap):
+            yield TableRow(row, self)
+
+class TableRow(object):
+
+    def __init__(self, row_element, parent):
+        self._row = row_element
+        self.parent = parent
+        self._trPr = self._row.find("w:trPr", namespaces=self._row.nsmap)
+
+    def get_cells(self):
+        for cell in self._row.findall("w:tc", namespaces=self._row.nsmap):
+            yield TableCell(cell, self)
+
+class TableCell(object):
+
+    def __init__(self, cell_element, parent):
+        self._cell = cell_element
+        self.parent = parent
+        self._tcPr = self._row.find("w:tcPr", namespaces=self._row.nsmap)
+
+    def get_paragraphs(self):
+        body = self.parent.parent.parent
+        for par in self._cell.findall("w:p", namespaces=self._cell.nsmap):
+            yield Paragraph(par, body)
 
 
 class RunContainer(object):
