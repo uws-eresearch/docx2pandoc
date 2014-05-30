@@ -19,6 +19,7 @@ correctSpan il = [il]
 
 correctDiv :: Block -> [Block]
 correctDiv (Div ("", [], []) blks) = blks
+correctDiv (Div (_, "list-item" : [], _) blks) = blks
 correctDiv blk = [blk]
 
 

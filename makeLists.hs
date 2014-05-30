@@ -43,6 +43,7 @@ listDelimMap = [("%1)", OneParen),
 getListType :: Block -> Maybe ListType
 getListType b@(Div (_, _, kvs) _) | isListItem b =
   let
+    start = lookup "start" kvs
     frmt = lookup "format" kvs
     txt  = lookup "text" kvs
   in
@@ -50,7 +51,8 @@ getListType b@(Div (_, _, kvs) _) | isListItem b =
      Just "bullet" -> Just Itemized
      Just f        ->
        case txt of
-         Just t -> Just $ Enumerated (1,
+         Just t -> Just $ Enumerated (
+                  read (fromMaybe "1" start) :: Int,
                   fromMaybe DefaultStyle (lookup f listStyleMap),
                   fromMaybe DefaultDelim (lookup t listDelimMap))
          Nothing -> Nothing
@@ -60,11 +62,15 @@ getListType b = Nothing
 separateBlocks' :: Block -> [[Block]] -> [[Block]]
 separateBlocks' blk ([] : []) = [[blk]]
 separateBlocks' b@(BulletList _) acc = (init acc) ++ [(last acc) ++ [b]]
+separateBlocks' b@(OrderedList _ _) acc = (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b acc | getNumIdN b == 1 = (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b acc = acc ++ [[b]]
 
+
+
+
 separateBlocks :: [Block] -> [[Block]]
-separateBlocks blks = foldr separateBlocks' [[]] blks 
+separateBlocks blks = foldr separateBlocks' [[]] (reverse blks)
 
 flatToBullets' :: Integer -> [(Integer, Block)] -> [Block]
 flatToBullets' _ [] = []
@@ -73,7 +79,9 @@ flatToBullets' num xs@((n, b) : elems)
   | otherwise = 
     let (children, remaining) = span (\(m, _) -> m > num) xs
     in
-     (BulletList (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
+     case getListType b of
+       Just (Enumerated attr) -> (OrderedList attr (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
+       _ -> (BulletList (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
 
 flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems

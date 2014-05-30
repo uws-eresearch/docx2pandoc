@@ -94,13 +94,13 @@ def para_to_json(p, doc):
         frmt = num.get_abstract_num().get_level(level).format
         txt  = num.get_abstract_num().get_level(level).text
         start = num.get_abstract_num().get_level(level).start
-        return PF.Div(("", ["list-item"], 
-                       [["level", str(level)], 
-                        ["num-id", str(num_id)], 
-                        ["format", frmt], 
-                        ["text", txt], 
-                        ["start", start]], 
-                       [out])
+        kvs = [["level", str(level)], 
+               ["num-id", str(num_id)], 
+               ["format", frmt], 
+               ["text", txt]]
+        if start is not None:
+            kvs.append(["start", start])
+        return PF.Div(("", ["list-item"], kvs), [out])
     else:
         return out
                     
