@@ -92,5 +92,4 @@ blocksToBullets blks = flatToBullets $ map (\b -> (getLevelN b, b)) blks
 pandocToBullets :: Pandoc -> Pandoc
 pandocToBullets (Pandoc m blks) = Pandoc m (blocksToBullets blks)
 
-
 main = toJSONFilter pandocToBullets
