@@ -33,6 +33,9 @@ type NameSpaces = [(String, String)]
 data Document = Document NameSpaces Body
           deriving Show
 
+data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
+           deriving Show
+
 filePathToBPs :: FilePath -> IO (Maybe [BodyPart])
 filePathToBPs fp = do
   f <- B.readFile fp
@@ -57,6 +60,25 @@ archiveToDocument zf = do
   bodyElem <- findChild (QName "body" (lookup "w" namespaces) Nothing) docElem
   body <- elemToBody namespaces bodyElem
   return $ Document namespaces body
+
+-- elemToNotes :: NameSpaces -> String -> Element -> Maybe [(String, [BodyPart])]
+-- elemToNotes ns notetype elem =
+--   map (\e -> )
+--   findChildren (QName notetype (lookup "w" ns) (Just "w")) elem
+  
+
+archiveToNotes :: Archive -> Maybe Notes
+archiveToNotes zf = do
+  fn_entry <- findEntryByPath "word/footnotes.xml" zf
+  en_entry <- findEntryByPath "word/footnotes.xml" zf
+  fnElem <- (parseXMLDoc . fromEntry) fn_entry
+  enElem <- (parseXMLDoc . fromEntry) en_entry
+  let fn_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
+      en_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
+      namespaces = fn_namespaces ++ en_namespaces
+  return $ Notes namespaces [] []
+
+
 
 data Body = Body [BodyPart]
           deriving Show
@@ -147,6 +169,8 @@ data ParPart = PlainRun Run
              deriving Show
 
 data Run = Run RunStyle String
+         | Footnote String [BodyPart]
+         | Endnote String [BodyPart]
            deriving Show
 
 data RunStyle = RunStyle { isBold :: Bool
@@ -184,17 +208,29 @@ elemToRunStyle ns elem =
         findAttr (QName "val" (lookup "w" ns) (Just "w"))
         }
     Nothing -> defaultRunStyle
-      
 
-  
+
 
 elemToParPart :: NameSpaces -> Element -> Maybe ParPart
 elemToParPart ns elem
   | qName (elName elem) == "r" &&
     qURI (elName elem) == (lookup "w" ns) =
-      case findChild (QName "t" (lookup "w" ns) (Just "w")) elem of
-        Just t -> Just $ PlainRun $ Run (elemToRunStyle ns elem) (strContent t)
-        Nothing -> Just $ PlainRun $ Run (elemToRunStyle ns elem) ""
+      case
+        findChild (QName "footnoteReference" (lookup "w" ns) (Just "w")) elem >>=
+        findAttr (QName "id" (lookup "w" ns) (Just "w"))
+      of
+        Just s -> Just $ PlainRun $ Footnote s []
+        Nothing ->
+          case
+            findChild (QName "endnoteReference" (lookup "w" ns) (Just "w")) elem >>=
+            findAttr (QName "id" (lookup "w" ns) (Just "w"))
+          of
+            Just s -> Just $ PlainRun $ Endnote s []
+            Nothing ->  case
+              findChild (QName "t" (lookup "w" ns) (Just "w")) elem
+              of
+                Just t -> Just $ PlainRun $ Run (elemToRunStyle ns elem) (strContent t)
+                Nothing -> Just $ PlainRun $ Run (elemToRunStyle ns elem) ""
 elemToParPart _ _ = Nothing
 
 
