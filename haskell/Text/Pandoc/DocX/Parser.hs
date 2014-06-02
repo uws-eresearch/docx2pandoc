@@ -25,6 +25,22 @@ type NameSpaces = [(String, String)]
 data Document = Document NameSpaces Body
           deriving Show
 
+filePathToBPs :: FilePath -> IO (Maybe [BodyPart])
+filePathToBPs fp = do
+  f <- B.readFile fp
+  let archive = toArchive f
+  return $ do
+    Document ns (Body bps) <- archiveToDocument archive
+    return bps
+
+isParagraph :: BodyPart -> Bool
+isParagraph (Paragraph _ _) = True
+isParagraph _ = False
+
+findStyledP :: BodyPart -> Bool
+findStyledP (Paragraph pPr _) = (isJust $ pStyle pPr) || (isJust $ indent pPr)
+findStyledP bp = False
+
 archiveToDocument :: Archive -> Maybe Document
 archiveToDocument zf = do
   entry <- findEntryByPath "word/document.xml" zf
@@ -69,7 +85,7 @@ elemToBodyPart ns element
   | qName (elName element) == "p" &&
     qURI (elName element) == (lookup "w" ns) =
       Just 
-      $ Paragraph []
+      $ Paragraph (elemToParagraphStyle ns element)
       $ map fromJust
       $ filter isJust
       $ (map (elemToParPart ns)
@@ -84,7 +100,33 @@ elemToBodyPart ns element
          $ filterChildrenName (isRow ns) element)
   | otherwise = Nothing
 
-data BodyPart = Paragraph Style [ParPart]
+data ParagraphStyle = ParagraphStyle { pStyle :: Maybe String
+                                     , indent :: Maybe Integer
+                                     }
+                      deriving Show
+
+defaultParagraphStyle :: ParagraphStyle
+defaultParagraphStyle = ParagraphStyle { pStyle = Nothing
+                                       , indent = Nothing
+                                       }
+
+elemToParagraphStyle :: NameSpaces -> Element -> ParagraphStyle
+elemToParagraphStyle ns elem =
+  case findChild (QName "pPr" (lookup "w" ns) (Just "w")) elem of
+    Just pPr ->
+      ParagraphStyle
+      {pStyle =
+        findChild (QName "pStyle" (lookup "w" ns) (Just "w")) pPr >>=
+        findAttr (QName "val" (lookup "w" ns) (Just "w"))
+      , indent =
+        findChild (QName "ind" (lookup "w" ns) (Just "w")) pPr >>=
+        findAttr (QName "left" (lookup "w" ns) (Just "w")) >>=
+        (\s -> listToMaybe (map fst (reads s :: [(Integer, String)])))
+        }
+    Nothing -> defaultParagraphStyle
+
+
+data BodyPart = Paragraph ParagraphStyle [ParPart]
               | Table Style [Row]
               deriving Show
 
@@ -109,10 +151,20 @@ data RunStyle = RunStyle { isBold :: Bool
                          , isItalic :: Bool
                          , isSmallCaps :: Bool
                          , isStrike :: Bool
-                         , underline :: Just String
-                         , style :: Just String }
+                         , underline :: Maybe String
+                         , rStyle :: Maybe String }
+                deriving Show
 
-elemToRunStyle :: NameSpaces -> Element -> Maybe RunStyle
+defaultRunStyle :: RunStyle
+defaultRunStyle = RunStyle { isBold = False
+                           , isItalic = False
+                           , isSmallCaps = False
+                           , isStrike = False
+                           , underline = Nothing
+                           , rStyle = Nothing
+                           }
+
+elemToRunStyle :: NameSpaces -> Element -> RunStyle
 elemToRunStyle ns elem =
   case findChild (QName "rPr" (lookup "w" ns) (Just "w")) elem of
     Just rPr ->
@@ -122,7 +174,15 @@ elemToRunStyle ns elem =
       , isItalic = isJust $ findChild (QName "i" (lookup "w" ns) (Just "w")) rPr
       , isSmallCaps = isJust $ findChild (QName "smallCaps" (lookup "w" ns) (Just "w")) rPr
       , isStrike = isJust $ findChild (QName "strike" (lookup "w" ns) (Just "w")) rPr
-      , underline = findChild (QName "u" (lookup "w" ns) (Just "w")) rPr
+      , underline =
+        findChild (QName "u" (lookup "w" ns) (Just "w")) rPr >>=
+        findAttr (QName "val" (lookup "w" ns) (Just "w"))
+      , rStyle =
+        findChild (QName "rStyle" (lookup "w" ns) (Just "w")) rPr >>=
+        findAttr (QName "val" (lookup "w" ns) (Just "w"))
+        }
+    Nothing -> defaultRunStyle
+      
 
   
 
@@ -131,21 +191,21 @@ elemToParPart ns elem
   | qName (elName elem) == "r" &&
     qURI (elName elem) == (lookup "w" ns) =
       case findChild (QName "t" (lookup "w" ns) (Just "w")) elem of
-        Just t -> Just $ PlainRun $ Run [] (strContent t)
-        Nothing -> Just $ PlainRun $ Run [] ""
+        Just t -> Just $ PlainRun $ Run (elemToRunStyle ns elem) (strContent t)
+        Nothing -> Just $ PlainRun $ Run (elemToRunStyle ns elem) ""
 elemToParPart _ _ = Nothing
 
 
 type NameSpace = Reader Element
 
-elemToRun :: Element -> NameSpace (Maybe Run)
-elemToRun elem = do
-  body <- ask
-  let text = getQName "w" "t" body >>= (\q -> findChild q elem)
-    in
-   return $ case text of
-     Nothing -> Nothing
-     Just e  -> Just $ Run [] (strContent e)
+-- elemToRun :: Element -> NameSpace (Maybe Run)
+-- elemToRun elem = do
+--   body <- ask
+--   let text = getQName "w" "t" body >>= (\q -> findChild q elem)
+--     in
+--    return $ case text of
+--      Nothing -> Nothing
+--      Just e  -> Just $ Run [] (strContent e)
 
 type Target = String
 type Style = [String]
