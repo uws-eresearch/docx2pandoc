@@ -118,10 +118,11 @@ elemToRunStyle ns elem =
     Just rPr ->
       RunStyle
       {
-        isBold = isJust $ findChild (QName "b" (lookup "w" ns) (Just "w"))
-      , isItalic = isJust $ findChild (QName "i" (lookup "w" ns) (Just "w"))
-      , isSmallCaps = isJust $ findChild (QName "smallCaps" (lookup "w" ns) (Just "w"))
-      , isStrike = isJust $ findChild (QName "strike" (lookup "w" ns) (Just "w"))
+        isBold = isJust $ findChild (QName "b" (lookup "w" ns) (Just "w")) rPr
+      , isItalic = isJust $ findChild (QName "i" (lookup "w" ns) (Just "w")) rPr
+      , isSmallCaps = isJust $ findChild (QName "smallCaps" (lookup "w" ns) (Just "w")) rPr
+      , isStrike = isJust $ findChild (QName "strike" (lookup "w" ns) (Just "w")) rPr
+      , underline = findChild (QName "u" (lookup "w" ns) (Just "w")) rPr
 
   
 
