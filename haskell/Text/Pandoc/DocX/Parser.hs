@@ -18,7 +18,15 @@ getQName prefix name elem =
 
 attrToNSPair :: Attr -> Maybe (String, String)
 attrToNSPair (Attr (QName s _ (Just "xmlns")) val) = Just (s, val)
-attrToNSPair attr = Nothing 
+attrToNSPair attr = Nothing
+
+isQNameNS :: [(String, String)] -> NameSpaces -> QName -> Bool
+isQNameNS prefixPairs ns q = (qURI q, qName q) `elem`
+                       (map (\(s, t) -> (lookup s ns, t)) prefixPairs)
+
+findChildrenNS :: [(String, String)] -> NameSpaces -> Element -> [Element]
+findChildrenNS prefixPairs ns elem =
+  filterChildrenName (isQNameNS prefixPairs ns) elem
 
 type NameSpaces = [(String, String)]
 
@@ -53,15 +61,16 @@ archiveToDocument zf = do
 data Body = Body [BodyPart]
           deriving Show
 
+isParOrTbl :: NameSpaces -> QName -> Bool
+isParOrTbl ns q = qName q `elem` ["p", "tbl"] &&
+                  qURI q == (lookup "w" ns)
+
 elemToBody :: NameSpaces -> Element ->  Maybe Body
 elemToBody ns element | qName (elName element) == "body" && qURI (elName element) == (lookup "w" ns) =
   Just $ Body
   $ map fromJust
   $ filter isJust
-  $ map (elemToBodyPart ns) $ filterChildrenName isParOrTbl element
-  where isParOrTbl :: QName -> Bool
-        isParOrTbl q = qName q `elem` ["p", "tbl"] &&
-                       qURI q == (lookup "w" ns)
+  $ map (elemToBodyPart ns) $ filterChildrenName (isParOrTbl ns) element
 elemToBody _ _ = Nothing
 
 isRunOrLink :: NameSpaces -> QName ->  Bool
@@ -72,13 +81,6 @@ isRow :: NameSpaces -> QName ->  Bool
 isRow ns q = qName q `elem` ["tr"] &&
              qURI q == (lookup "w" ns)
 
--- isQNameNS :: [(String, String)] -> NameSpaces -> QName -> Bool
--- isQNameNS prefixPairs ns q = (qURI q, qName q) `elem`
---                        (map (\(s, t) -> (lookup s ns, t)) prefixPairs)
-
--- findChildrenNS :: [(String, String)] -> NameSpaces -> Element -> [Element]
--- findChildrenNS prefixPairs ns elem =
---   findChildren (isQNameNS prefixPairs ns) elem
 
 elemToBodyPart :: NameSpaces -> Element ->  Maybe BodyPart
 elemToBodyPart ns element
