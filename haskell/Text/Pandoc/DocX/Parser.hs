@@ -102,6 +102,29 @@ data ParPart = PlainRun Run
              | ExternalHyperLink Target [Run]
              deriving Show
 
+data Run = Run RunStyle String
+           deriving Show
+
+data RunStyle = RunStyle { isBold :: Bool
+                         , isItalic :: Bool
+                         , isSmallCaps :: Bool
+                         , isStrike :: Bool
+                         , underline :: Just String
+                         , style :: Just String }
+
+elemToRunStyle :: NameSpaces -> Element -> Maybe RunStyle
+elemToRunStyle ns elem =
+  case findChild (QName "rPr" (lookup "w" ns) (Just "w")) elem of
+    Just rPr ->
+      RunStyle
+      {
+        isBold = isJust $ findChild (QName "b" (lookup "w" ns) (Just "w"))
+      , isItalic = isJust $ findChild (QName "i" (lookup "w" ns) (Just "w"))
+      , isSmallCaps = isJust $ findChild (QName "smallCaps" (lookup "w" ns) (Just "w"))
+      , isStrike = isJust $ findChild (QName "strike" (lookup "w" ns) (Just "w"))
+
+  
+
 elemToParPart :: NameSpaces -> Element -> Maybe ParPart
 elemToParPart ns elem
   | qName (elName elem) == "r" &&
@@ -111,10 +134,6 @@ elemToParPart ns elem
         Nothing -> Just $ PlainRun $ Run [] ""
 elemToParPart _ _ = Nothing
 
-
-
-data Run = Run Style String
-           deriving Show
 
 type NameSpace = Reader Element
 
