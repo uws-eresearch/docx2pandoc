@@ -32,15 +32,16 @@ findChildrenNS prefixPairs ns elem =
 
 type NameSpaces = [(String, String)]
 
-data DocX = DocX Document Notes [Relationship]
+data DocX = DocX Document Notes Numbering [Relationship]
           deriving Show
 
 archiveToDocX :: Archive -> Maybe DocX
 archiveToDocX archive = do
   doc <- archiveToDocument archive
   notes <- archiveToNotes archive
+  numbering <- archiveToNumbering archive
   let rels = archiveToRelationships archive
-  return $ DocX doc notes rels
+  return $ DocX doc notes numbering rels
 
 data Document = Document NameSpaces Body 
           deriving Show
@@ -53,6 +54,70 @@ archiveToDocument zf = do
   bodyElem <- findChild (QName "body" (lookup "w" namespaces) Nothing) docElem
   body <- elemToBody namespaces bodyElem
   return $ Document namespaces body
+
+data Numbering = Numbering NameSpaces [Numb] [AbstractNumb]
+                 deriving Show
+
+data Numb = Numb String String           -- right now, only a key to an abstract num
+            deriving Show
+
+data AbstractNumb = AbstractNumb String [Level]
+                    deriving Show
+
+type Level = (String, String, String, Maybe Integer)
+
+numElemToNum :: NameSpaces -> Element -> Maybe Numb
+numElemToNum ns element |
+  qName (elName element) == "num" &&
+  qURI (elName element) == (lookup "w" ns) = do
+    numId <- findAttr (QName "numId" (lookup "w" ns) (Just "w")) element
+    absNumId <- findChild (QName "abstractNumId" (lookup "w" ns) (Just "w")) element
+                >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
+    return $ Numb numId absNumId
+numElemToNum _ _ = Nothing
+
+absNumElemToAbsNum :: NameSpaces -> Element -> Maybe AbstractNumb
+absNumElemToAbsNum ns element |
+  qName (elName element) == "abstractNum" &&
+  qURI (elName element) == (lookup "w" ns) = do
+    absNumId <- findAttr
+                (QName "abstractNumId" (lookup "w" ns) (Just "w"))
+                element
+    let levelElems = findChildren
+                 (QName "lvl" (lookup "w" ns) (Just "w"))
+                 element
+        levels = mapMaybe id $ map (levelElemToLevel ns) levelElems
+    return $ AbstractNumb absNumId levels
+absNumElemToNum _ _ = Nothing
+
+levelElemToLevel :: NameSpaces -> Element -> Maybe Level
+levelElemToLevel ns element |
+    qName (elName element) == "lvl" &&
+    qURI (elName element) == (lookup "w" ns) = do
+      ilvl <- findAttr (QName "ilvl" (lookup "w" ns) (Just "w")) element
+      fmt <- findChild (QName "numFmt" (lookup "w" ns) (Just "w")) element
+             >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
+      txt <- findChild (QName "lvlText" (lookup "w" ns) (Just "w")) element
+             >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
+      let start = findChild (QName "start" (lookup "w" ns) (Just "w")) element
+                  >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
+                  >>= (\s -> listToMaybe (map fst (reads s :: [(Integer, String)])))
+      return (ilvl, fmt, txt, start)
+
+archiveToNumbering :: Archive -> Maybe Numbering
+archiveToNumbering zf = do
+  entry <- findEntryByPath "word/numbering.xml" zf
+  numberingElem <- (parseXMLDoc . fromEntry) entry
+  let namespaces = mapMaybe attrToNSPair (elAttribs numberingElem)
+      numElems = findChildren
+                 (QName "num" (lookup "w" namespaces) (Just "w"))
+                 numberingElem
+      absNumElems = findChildren
+                    (QName "abstracNum" (lookup "w" namespaces) (Just "w"))
+                    numberingElem
+      nums = mapMaybe id $ map (numElemToNum namespaces) numElems
+      absNums = mapMaybe id $ map (absNumElemToNum namespaces) absNumElems
+  return $ Numbering namespaces nums absNums
 
 data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
            deriving Show
