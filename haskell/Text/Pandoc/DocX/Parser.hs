@@ -89,7 +89,6 @@ elemToNotes ns notetype element
       $ map (noteElemToNote ns)
       $ findChildren (QName notetype (lookup "w" ns) (Just "w")) element
 elemToNotes ns notetype element = Nothing
-  
 
 archiveToNotes :: Archive -> Maybe Notes
 archiveToNotes zf = do
@@ -104,11 +103,6 @@ archiveToNotes zf = do
   en <- (elemToNotes namespaces "endnote" enElem)
   return
     $ Notes namespaces fn en
-    
-    
-    
-
-
 
 data Body = Body [BodyPart]
           deriving Show
