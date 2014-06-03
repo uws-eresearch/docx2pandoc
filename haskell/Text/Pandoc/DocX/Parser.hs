@@ -2,6 +2,8 @@ import Codec.Archive.Zip
 import Text.XML.Light
 import Control.Monad.Reader
 import Data.Maybe
+import Data.List
+import System.FilePath
 import qualified Data.ByteString.Lazy as B
 
 getNameSpace :: String -> Element -> Maybe String
@@ -30,33 +32,18 @@ findChildrenNS prefixPairs ns elem =
 
 type NameSpaces = [(String, String)]
 
-data Document = Document NameSpaces Body
+data DocX = DocX Document Notes [Relationship]
           deriving Show
 
-data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
-           deriving Show
+archiveToDocX :: Archive -> Maybe DocX
+archiveToDocX archive = do
+  doc <- archiveToDocument archive
+  notes <- archiveToNotes archive
+  let rels = archiveToRelationships archive
+  return $ DocX doc notes rels
 
-getFootNote :: String -> Notes -> Maybe [BodyPart]
-getFootNote s (Notes _ fns _) = lookup s fns
-
-getEndNote :: String -> Notes -> Maybe [BodyPart]
-getEndNote s (Notes _ _ ens) = lookup s ens
-
-filePathToBPs :: FilePath -> IO (Maybe [BodyPart])
-filePathToBPs fp = do
-  f <- B.readFile fp
-  let archive = toArchive f
-  return $ do
-    Document ns (Body bps) <- archiveToDocument archive
-    return bps
-
-isParagraph :: BodyPart -> Bool
-isParagraph (Paragraph _ _) = True
-isParagraph _ = False
-
-findStyledP :: BodyPart -> Bool
-findStyledP (Paragraph pPr _) = (isJust $ pStyle pPr) || (isJust $ indent pPr)
-findStyledP bp = False
+data Document = Document NameSpaces Body 
+          deriving Show
 
 archiveToDocument :: Archive -> Maybe Document
 archiveToDocument zf = do
@@ -66,6 +53,9 @@ archiveToDocument zf = do
   bodyElem <- findChild (QName "body" (lookup "w" namespaces) Nothing) docElem
   body <- elemToBody namespaces bodyElem
   return $ Document namespaces body
+
+data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
+           deriving Show
 
 noteElemToNote :: NameSpaces -> Element -> Maybe (String, [BodyPart])
 noteElemToNote ns element
@@ -79,6 +69,12 @@ noteElemToNote ns element
                   $ filterChildrenName (isParOrTbl ns) element
         return $ (id, bps)
 noteElemToNote ns element = Nothing
+
+getFootNote :: String -> Notes -> Maybe [BodyPart]
+getFootNote s (Notes _ fns _) = lookup s fns
+
+getEndNote :: String -> Notes -> Maybe [BodyPart]
+getEndNote s (Notes _ _ ens) = lookup s ens
 
 elemToNotes :: NameSpaces -> String -> Element -> Maybe [(String, [BodyPart])]
 elemToNotes ns notetype element
@@ -98,11 +94,40 @@ archiveToNotes zf = do
   enElem <- (parseXMLDoc . fromEntry) en_entry
   let fn_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
       en_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
-      namespaces = fn_namespaces ++ en_namespaces
+      namespaces = unionBy (\x y -> fst x == fst y) fn_namespaces en_namespaces
   fn <- (elemToNotes namespaces "footnote" fnElem)
   en <- (elemToNotes namespaces "endnote" enElem)
   return
     $ Notes namespaces fn en
+
+data Relationship = Relationship (String, String)
+                  deriving Show
+
+filePathIsRel :: FilePath -> Bool
+filePathIsRel fp =
+  let (dir, name) = splitFileName fp
+  in
+   (dir == "word/_rels") && ((takeExtension name) == ".rel")
+
+relElemToRelationship :: Element -> Maybe Relationship
+relElemToRelationship element | qName (elName element) == "Relationship" =
+  do
+    relId <- findAttr (QName "Id" Nothing Nothing) element
+    target <- findAttr (QName "Target" Nothing Nothing) element
+    return $ Relationship (relId, target)
+relElemToRelationship _ = Nothing
+  
+
+archiveToRelationships :: Archive -> [Relationship]
+archiveToRelationships archive = 
+  let relPaths = filter filePathIsRel (filesInArchive archive)
+      entries  = map fromJust $ filter isJust $ map (\f -> findEntryByPath f archive) relPaths
+      relElems = map fromJust $ filter isJust $ map (parseXMLDoc . fromEntry) entries
+      rels = map fromJust $ filter isJust $ map relElemToRelationship $ concatMap elChildren relElems
+  in
+   rels
+   
+
 
 data Body = Body [BodyPart]
           deriving Show
@@ -126,7 +151,6 @@ isRunOrLink ns q = qName q `elem` ["r", "hyperlink"] &&
 isRow :: NameSpaces -> QName ->  Bool
 isRow ns q = qName q `elem` ["tr"] &&
              qURI q == (lookup "w" ns)
-
 
 elemToBodyPart :: NameSpaces -> Element ->  Maybe BodyPart
 elemToBodyPart ns element
@@ -188,13 +212,13 @@ data Cell = Cell Style [BodyPart]
             deriving Show
 
 data ParPart = PlainRun Run
-             | InternalHyperLink Target [Run]
-             | ExternalHyperLink Target [Run]
+             | InternalHyperLink Anchor [Run]
+             | ExternalHyperLink RelId [Run]
              deriving Show
 
 data Run = Run RunStyle String
-         | Footnote String [BodyPart]
-         | Endnote String [BodyPart]
+         | Footnote String 
+         | Endnote String 
            deriving Show
 
 data RunStyle = RunStyle { isBold :: Bool
@@ -233,42 +257,54 @@ elemToRunStyle ns elem =
         }
     Nothing -> defaultRunStyle
 
+elemToRun :: NameSpaces -> Element -> Maybe Run
+elemToRun ns element
+  | qName (elName element) == "r" &&
+    qURI (elName element) == (lookup "w" ns) =
+      case
+        findChild (QName "footnoteReference" (lookup "w" ns) (Just "w")) element >>=
+        findAttr (QName "id" (lookup "w" ns) (Just "w"))
+      of
+        Just s -> Just $ Footnote s
+        Nothing ->
+          case
+            findChild (QName "endnoteReference" (lookup "w" ns) (Just "w")) element >>=
+            findAttr (QName "id" (lookup "w" ns) (Just "w"))
+          of
+            Just s -> Just $ Endnote s 
+            Nothing ->  case
+              findChild (QName "t" (lookup "w" ns) (Just "w")) element
+              of
+                Just t -> Just $ Run (elemToRunStyle ns element) (strContent t)
+                Nothing -> Just $ Run (elemToRunStyle ns element) ""
+elemToRun _ _ = Nothing
 
 
 elemToParPart :: NameSpaces -> Element -> Maybe ParPart
-elemToParPart ns elem
-  | qName (elName elem) == "r" &&
-    qURI (elName elem) == (lookup "w" ns) =
-      case
-        findChild (QName "footnoteReference" (lookup "w" ns) (Just "w")) elem >>=
-        findAttr (QName "id" (lookup "w" ns) (Just "w"))
-      of
-        Just s -> Just $ PlainRun $ Footnote s []
-        Nothing ->
-          case
-            findChild (QName "endnoteReference" (lookup "w" ns) (Just "w")) elem >>=
-            findAttr (QName "id" (lookup "w" ns) (Just "w"))
-          of
-            Just s -> Just $ PlainRun $ Endnote s []
-            Nothing ->  case
-              findChild (QName "t" (lookup "w" ns) (Just "w")) elem
-              of
-                Just t -> Just $ PlainRun $ Run (elemToRunStyle ns elem) (strContent t)
-                Nothing -> Just $ PlainRun $ Run (elemToRunStyle ns elem) ""
+elemToParPart ns element
+  | qName (elName element) == "r" &&
+    qURI (elName element) == (lookup "w" ns) =
+      do
+        r <- elemToRun ns element
+        return $ PlainRun r
+elemToParPart ns element
+  | qName (elName element) == "hyperlink" &&
+    qURI (elName element) == (lookup "w" ns) =
+      let runs = map fromJust $ filter isJust $ map (elemToRun ns)
+                 $ findChildren (QName "r" (lookup "w" ns) (Just "w")) element
+      in
+       case findAttr (QName "anchor" (lookup "w" ns) (Just "w")) element of
+         Just anchor ->
+          Just $ InternalHyperLink anchor runs
+         Nothing ->
+           case findAttr (QName "id" (lookup "r" ns) (Just "r")) element of
+             Just relId -> Just $ ExternalHyperLink relId runs
+             Nothing    -> Nothing
 elemToParPart _ _ = Nothing
-
 
 type NameSpace = Reader Element
 
--- elemToRun :: Element -> NameSpace (Maybe Run)
--- elemToRun elem = do
---   body <- ask
---   let text = getQName "w" "t" body >>= (\q -> findChild q elem)
---     in
---    return $ case text of
---      Nothing -> Nothing
---      Just e  -> Just $ Run [] (strContent e)
-
-type Target = String
+type Anchor = String
+type RelId = String
 type Style = [String]
                
