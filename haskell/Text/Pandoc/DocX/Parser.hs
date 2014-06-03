@@ -36,6 +36,12 @@ data Document = Document NameSpaces Body
 data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
            deriving Show
 
+getFootNote :: String -> Notes -> Maybe [BodyPart]
+getFootNote s (Notes _ fns _) = lookup s fns
+
+getEndNote :: String -> Notes -> Maybe [BodyPart]
+getEndNote s (Notes _ _ ens) = lookup s ens
+
 filePathToBPs :: FilePath -> IO (Maybe [BodyPart])
 filePathToBPs fp = do
   f <- B.readFile fp
@@ -61,22 +67,46 @@ archiveToDocument zf = do
   body <- elemToBody namespaces bodyElem
   return $ Document namespaces body
 
--- elemToNotes :: NameSpaces -> String -> Element -> Maybe [(String, [BodyPart])]
--- elemToNotes ns notetype elem =
---   map (\e -> )
---   findChildren (QName notetype (lookup "w" ns) (Just "w")) elem
+noteElemToNote :: NameSpaces -> Element -> Maybe (String, [BodyPart])
+noteElemToNote ns element
+  | qName (elName element) `elem` ["endnote", "footnote"] &&
+    qURI (elName element) == (lookup "w" ns) =
+      do
+        id <- findAttr (QName "id" (lookup "w" ns) (Just "w")) element
+        let bps = map fromJust
+                  $ filter isJust
+                  $ map (elemToBodyPart ns)
+                  $ filterChildrenName (isParOrTbl ns) element
+        return $ (id, bps)
+noteElemToNote ns element = Nothing
+
+elemToNotes :: NameSpaces -> String -> Element -> Maybe [(String, [BodyPart])]
+elemToNotes ns notetype element
+  | qName (elName element) == (notetype ++ "s") &&
+    qURI (elName element) == (lookup "w" ns) =
+      Just $ map fromJust
+      $ filter isJust
+      $ map (noteElemToNote ns)
+      $ findChildren (QName notetype (lookup "w" ns) (Just "w")) element
+elemToNotes ns notetype element = Nothing
   
 
 archiveToNotes :: Archive -> Maybe Notes
 archiveToNotes zf = do
   fn_entry <- findEntryByPath "word/footnotes.xml" zf
-  en_entry <- findEntryByPath "word/footnotes.xml" zf
+  en_entry <- findEntryByPath "word/endnotes.xml" zf
   fnElem <- (parseXMLDoc . fromEntry) fn_entry
   enElem <- (parseXMLDoc . fromEntry) en_entry
   let fn_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
       en_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
       namespaces = fn_namespaces ++ en_namespaces
-  return $ Notes namespaces [] []
+  fn <- (elemToNotes namespaces "footnote" fnElem)
+  en <- (elemToNotes namespaces "endnote" enElem)
+  return
+    $ Notes namespaces fn en
+    
+    
+    
 
 
 
