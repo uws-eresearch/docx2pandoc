@@ -41,7 +41,7 @@ data DocX = DocX Document Notes Numbering [Relationship]
 archiveToDocX :: Archive -> Maybe DocX
 archiveToDocX archive = do
   doc <- archiveToDocument archive
-  notes <- archiveToNotes archive
+  let notes = archiveToNotes archive
   numbering <- archiveToNumbering archive
   let rels = archiveToRelationships archive
   return $ DocX doc notes numbering rels
@@ -130,7 +130,7 @@ archiveToNumbering zf = do
       absNums = mapMaybe id $ map (absNumElemToNum namespaces) absNumElems
   return $ Numbering namespaces nums absNums
 
-data Notes = Notes NameSpaces [(String, [BodyPart])] [(String, [BodyPart])]
+data Notes = Notes NameSpaces (Maybe [(String, [BodyPart])]) (Maybe [(String, [BodyPart])])
            deriving Show
 
 noteElemToNote :: NameSpaces -> Element -> Maybe (String, [BodyPart])
@@ -147,10 +147,10 @@ noteElemToNote ns element
 noteElemToNote ns element = Nothing
 
 getFootNote :: String -> Notes -> Maybe [BodyPart]
-getFootNote s (Notes _ fns _) = lookup s fns
+getFootNote s (Notes _ fns _) = fns >>= (lookup s)
 
 getEndNote :: String -> Notes -> Maybe [BodyPart]
-getEndNote s (Notes _ _ ens) = lookup s ens
+getEndNote s (Notes _ _ ens) = ens >>= (lookup s)
 
 elemToNotes :: NameSpaces -> String -> Element -> Maybe [(String, [BodyPart])]
 elemToNotes ns notetype element
@@ -162,19 +162,24 @@ elemToNotes ns notetype element
       $ findChildren (QName notetype (lookup "w" ns) (Just "w")) element
 elemToNotes ns notetype element = Nothing
 
-archiveToNotes :: Archive -> Maybe Notes
-archiveToNotes zf = do
-  fn_entry <- findEntryByPath "word/footnotes.xml" zf
-  en_entry <- findEntryByPath "word/endnotes.xml" zf
-  fnElem <- (parseXMLDoc . fromEntry) fn_entry
-  enElem <- (parseXMLDoc . fromEntry) en_entry
-  let fn_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
-      en_namespaces = mapMaybe attrToNSPair (elAttribs fnElem)
-      namespaces = unionBy (\x y -> fst x == fst y) fn_namespaces en_namespaces
-  fn <- (elemToNotes namespaces "footnote" fnElem)
-  en <- (elemToNotes namespaces "endnote" enElem)
-  return
-    $ Notes namespaces fn en
+archiveToNotes :: Archive -> Notes
+archiveToNotes zf =
+  let fnElem = findEntryByPath "word/footnotes.xml" zf
+               >>= (parseXMLDoc . fromEntry)
+      enElem = findEntryByPath "word/endnotes.xml" zf
+               >>= (parseXMLDoc . fromEntry)
+      fn_namespaces = case fnElem of
+        Just e -> mapMaybe attrToNSPair (elAttribs e)
+        Nothing -> []
+      en_namespaces = case enElem of
+        Just e -> mapMaybe attrToNSPair (elAttribs e)
+        Nothing -> []
+      ns = unionBy (\x y -> fst x == fst y) fn_namespaces en_namespaces
+      fn = fnElem >>= (elemToNotes ns "footnote")
+      en = enElem >>= (elemToNotes ns "endnote")
+  in
+   Notes ns fn en
+
 
 data Relationship = Relationship (RelId, Target)
                   deriving Show
@@ -261,7 +266,7 @@ elemToBodyPart ns element
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
       Just
-      $ Table []
+      $ Tbl []
       $ map fromJust
       $ filter isJust
       $ (map (elemToRow ns)
@@ -296,7 +301,7 @@ elemToParagraphStyle ns elem =
 
 data BodyPart = Paragraph ParagraphStyle [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
-              | Table Style [Row]
+              | Tbl Style [Row]
 
               deriving Show
 

@@ -1,3 +1,8 @@
+module Text.Pandoc.DocX.Pandoc
+       ( archiveToBlocks
+       ) where
+
+import Codec.Archive.Zip
 import Text.Pandoc
 import Text.Pandoc.JSON
 import Text.Pandoc.Shared
@@ -63,20 +68,51 @@ parPartToInline docx@(DocX _ _ _ rels) (ExternalHyperLink relid runs) =
     Nothing ->
       Link (map (runToInline docx) runs) ("", "")
 
+parPartsToInlines :: DocX -> [ParPart] -> [Inline]
+parPartsToInlines docx parparts =
+  bottomUp spanCorrect $ bottomUp spanReduce
+  $ map (parPartToInline docx) parparts
+
+
+
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
-  Div (parStyleToDivAttr pPr) [Para (map (parPartToInline docx) parparts)]
+  Div (parStyleToDivAttr pPr) [Para (parPartsToInlines docx parparts)]
 bodyPartToBlock docx@(DocX _ _ numbering _) (ListItem pPr numId lvl parparts) =
-  let fmt = ""
-      txt = ""
+  let
+    kvs = case lookupLevel numId lvl numbering of
+      Just (_, fmt, txt, Just start) -> [ ("level", lvl)
+                                        , ("num-id", numId)
+                                        , ("format", fmt)
+                                        , ("text", txt)
+                                        , ("start", (show start))
+                                        ]
+      
+      Just (_, fmt, txt, Nothing)    -> [ ("level", lvl)
+                                        , ("num-id", numId)
+                                        , ("format", fmt)
+                                        , ("text", txt)
+                                        ]
+      Nothing                        -> []
   in
    Div
-   ("",
-    ["list-item"],
-    [("level", lvl), ("num-id", numId), ("format", fmt), ("text", txt)])
+   ("", ["list-item"], kvs)
    [bodyPartToBlock docx (Paragraph pPr parparts)]
+bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl _ _) =
+  Para [(Str "[TABLES NOT IMPLEMENTED]")]
 
+bodyToBlocks :: DocX -> Body -> [Block]
+bodyToBlocks docx (Body bps) =
+  bottomUp divCorrect $ bottomUp divReduce
+  $ map (bodyPartToBlock docx) bps
 
+docxToBlocks :: DocX -> [Block]
+docxToBlocks d@(DocX (Document _ body) _ _ _) = bodyToBlocks d body
+
+archiveToBlocks :: Archive -> Maybe [Block]
+archiveToBlocks archive = do
+  docx <- archiveToDocX archive
+  return $ docxToBlocks docx
 
 spanReduce :: [Inline] -> [Inline]
 spanReduce [] = []
@@ -102,6 +138,25 @@ spanReduce (s1@(Span (id1, classes1, kvs1) ils1) :
                            ils)
 spanReduce (il:ils) = il : (spanReduce ils)
 
+spanCorrect' :: Inline -> [Inline]
+spanCorrect' (Span ("", [], []) ils) = ils
+spanCorrect' (Span (ident, classes, kvs) ils)
+  | "emph" `elem` classes =
+    [Emph $ spanCorrect' $ Span (ident, (delete "emph" classes), kvs) ils]
+  | "strong" `elem` classes =
+    [Strong $ spanCorrect' $ Span (ident, (delete "strong" classes), kvs) ils]
+  | "smallcaps" `elem` classes =
+    [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
+  | "strikeout" `elem` classes =
+    [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
+  | otherwise =
+      [Span (ident, classes, kvs) ils]
+spanCorrect' il = [il]
+
+spanCorrect :: [Inline] -> [Inline]
+spanCorrect = concatMap spanCorrect'
+
+
 divReduce :: [Block] -> [Block]
 divReduce [] = []
 divReduce (d1@(Div (id1, classes1, kvs1) blks1) : blks)
@@ -126,4 +181,34 @@ divReduce (d1@(Div (id1, classes1, kvs1) blks1) :
                            blks)
 divReduce (blk:blks) = blk : (divReduce blks)
 
+isHeaderClass :: String -> Maybe Int
+isHeaderClass s | "Heading" `isPrefixOf` s =
+  case reads (drop (length "Heading") s) :: [(Int, String)] of
+    [] -> Nothing
+    ((n, "") : []) -> Just n
+    _       -> Nothing
+isHeaderClass _ = Nothing
 
+findHeaderClass :: [String] -> Maybe Int
+findHeaderClass ss = case mapMaybe id $ map isHeaderClass ss of
+  [] -> Nothing
+  n : ns -> Just n
+
+blksToInlines :: [Block] -> [Inline]
+blksToInlines (Para ils : blks) = ils
+blksToInlines (Plain ils : blks) = ils
+blksToInlines blks = []
+                                                 
+divCorrect' :: Block -> [Block]
+divCorrect' (Div ("", [], []) blks) = blks
+divCorrect' (Div (ident, classes, kvs) blks)
+  | isJust $ findHeaderClass classes =
+    let n = fromJust $ findHeaderClass classes
+    in
+    [Header n (ident, delete ("Heading" ++ (show n)) classes, kvs) (blksToInlines blks)]
+  | otherwise =
+      [Div (ident, classes, kvs) blks]
+divCorrect' il = [il]
+
+divCorrect :: [Block] -> [Block]
+divCorrect = concatMap divCorrect'
