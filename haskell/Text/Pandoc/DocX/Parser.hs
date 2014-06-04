@@ -1,6 +1,5 @@
 module Text.Pandoc.DocX.Parser
-       (archiveToDocX
-       ) where
+       where
 
 import Codec.Archive.Zip
 import Text.XML.Light
@@ -68,7 +67,15 @@ data Numb = Numb String String           -- right now, only a key to an abstract
 data AbstractNumb = AbstractNumb String [Level]
                     deriving Show
 
+-- (ilvl, format, string, start)
 type Level = (String, String, String, Maybe Integer)
+
+lookupLevel :: String -> String -> Numbering -> Maybe Level
+lookupLevel numId ilvl (Numbering _ numbs absNumbs) = do
+  absNumId <- lookup numId $ map (\(Numb nid absnumid) -> (nid, absnumid)) numbs
+  lvls <- lookup absNumId $ map (\(AbstractNumb aid ls) -> (aid, ls)) absNumbs
+  lvl  <- lookup ilvl $ map (\l@(i, _, _, _) -> (i, l)) lvls
+  return lvl
 
 numElemToNum :: NameSpaces -> Element -> Maybe Numb
 numElemToNum ns element |
@@ -169,8 +176,12 @@ archiveToNotes zf = do
   return
     $ Notes namespaces fn en
 
-data Relationship = Relationship (String, String)
+data Relationship = Relationship (RelId, Target)
                   deriving Show
+
+lookupRelationship :: RelId -> [Relationship] -> Maybe Target
+lookupRelationship relid rels =
+  lookup relid (map (\(Relationship pair) -> pair) rels)
 
 filePathIsRel :: FilePath -> Bool
 filePathIsRel fp =
@@ -391,6 +402,7 @@ elemToParPart _ _ = Nothing
 
 type NameSpace = Reader Element
 
+type Target = String
 type Anchor = String
 type RelId = String
 type Style = [String]
