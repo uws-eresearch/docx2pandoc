@@ -1,3 +1,7 @@
+module Text.Pandoc.DocX.Parser
+       (archiveToDocX
+       ) where
+
 import Codec.Archive.Zip
 import Text.XML.Light
 import Control.Monad.Reader
@@ -217,16 +221,32 @@ isRow :: NameSpaces -> QName ->  Bool
 isRow ns q = qName q `elem` ["tr"] &&
              qURI q == (lookup "w" ns)
 
+elemToNumInfo :: NameSpaces -> Element -> Maybe (String, String)
+elemToNumInfo ns element
+  | qName (elName element) == "p" &&
+    qURI (elName element) == (lookup "w" ns) =
+      do
+        pPr <- findChild (QName "pPr" (lookup "w" ns) (Just "w")) element
+        numPr <- findChild (QName "numPr" (lookup "w" ns) (Just "w")) pPr
+        lvl <- findChild (QName "ilvl" (lookup "w" ns) (Just "w")) numPr >>=
+                findAttr (QName "val" (lookup "w" ns) (Just "w"))
+        numId <- findChild (QName "numId" (lookup "w" ns) (Just "w")) numPr >>=
+                 findAttr (QName "val" (lookup "w" ns) (Just "w"))
+        return (numId, lvl)
+elemToNumInfo _ _ = Nothing
+
 elemToBodyPart :: NameSpaces -> Element ->  Maybe BodyPart
 elemToBodyPart ns element
   | qName (elName element) == "p" &&
     qURI (elName element) == (lookup "w" ns) =
-      Just 
-      $ Paragraph (elemToParagraphStyle ns element)
-      $ map fromJust
-      $ filter isJust
-      $ (map (elemToParPart ns)
-         $ filterChildrenName (isRunOrLink ns) element)
+      let parstyle = elemToParagraphStyle ns element
+          parparts = mapMaybe id
+                     $ map (elemToParPart ns)
+                     $ filterChildrenName (isRunOrLink ns) element
+      in
+       case elemToNumInfo ns element of
+         Just (numId, lvl) -> Just $ ListItem parstyle numId lvl parparts
+         Nothing -> Just $ Paragraph parstyle parparts
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
       Just
@@ -264,7 +284,9 @@ elemToParagraphStyle ns elem =
 
 
 data BodyPart = Paragraph ParagraphStyle [ParPart]
+              | ListItem ParagraphStyle String String [ParPart]
               | Table Style [Row]
+
               deriving Show
 
 data Row = Row Style [Cell]
