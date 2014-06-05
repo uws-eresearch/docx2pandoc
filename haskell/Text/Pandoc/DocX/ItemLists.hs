@@ -2,8 +2,6 @@ module Text.Pandoc.DocX.ItemLists
        where
 
 import Text.Pandoc.JSON
-import Text.Pandoc
-import Data.List
 import Control.Monad
 import Data.Maybe
 
@@ -87,7 +85,7 @@ flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
 
 removeListItemDivs' :: Block -> [Block]
-removeListItemDivs' (Div (ident, classes, kvs) blks)
+removeListItemDivs' (Div (_, classes, _) blks)
   | "list-item" `elem` classes = blks
 removeListItemDivs' blk = [blk]
 

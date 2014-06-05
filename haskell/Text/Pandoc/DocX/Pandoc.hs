@@ -36,7 +36,7 @@ strToInlines :: String -> [Inline]
 strToInlines "" = []
 strToInlines s  =
   let (v, w) = span (not . isSpace) s
-      (x, y) = span isSpace w
+      (_, y) = span isSpace w
   in
       case null w of
         True  -> [Str v]
@@ -129,7 +129,7 @@ archiveToBlocks archive = do
 
 spanReduce :: [Inline] -> [Inline]
 spanReduce [] = []
-spanReduce (s1@(Span (id1, classes1, kvs1) ils1) : ils)
+spanReduce ((Span (id1, classes1, kvs1) ils1) : ils)
   | (id1, classes1, kvs1) == ("", [], []) = ils1 ++ (spanReduce ils)
 spanReduce (s1@(Span (id1, classes1, kvs1) ils1) :
             s2@(Span (id2, classes2, kvs2) ils2) :
@@ -153,9 +153,7 @@ spanReduce (il:ils) = il : (spanReduce ils)
 
 ilToCode :: Inline -> String
 ilToCode (Str s) = s
-ilToCode s = ""
-
-
+ilToCode _ = ""
 
 spanCorrect' :: Inline -> [Inline]
 spanCorrect' (Span ("", [], []) ils) = ils
@@ -179,10 +177,10 @@ spanCorrect = concatMap spanCorrect'
 
 divReduce :: [Block] -> [Block]
 divReduce [] = []
-divReduce (d1@(Div (id1, classes1, kvs1) blks1) : blks)
+divReduce ((Div (id1, classes1, kvs1) blks1) : blks)
   | (id1, classes1, kvs1) == ("", [], []) = blks1 ++ (divReduce blks)
 divReduce (d1@(Div (id1, classes1, kvs1) blks1) :
-            d2@(Div (id2, classes2, kvs2) blks2) :
+           d2@(Div (id2, classes2, kvs2) blks2) :
             blks) =
   let classes'  = classes1 `intersect` classes2
       kvs'      = kvs1 `intersect` kvs2
@@ -212,12 +210,12 @@ isHeaderClass _ = Nothing
 findHeaderClass :: [String] -> Maybe Int
 findHeaderClass ss = case mapMaybe id $ map isHeaderClass ss of
   [] -> Nothing
-  n : ns -> Just n
+  n : _ -> Just n
 
 blksToInlines :: [Block] -> [Inline]
-blksToInlines (Para ils : blks) = ils
-blksToInlines (Plain ils : blks) = ils
-blksToInlines blks = []
+blksToInlines (Para ils : _) = ils
+blksToInlines (Plain ils : _) = ils
+blksToInlines _ = []
 
 divCorrectPreReduce' :: Block -> [Block]
 divCorrectPreReduce' (Div (ident, classes, kvs) blks)
@@ -233,11 +231,11 @@ divCorrectPreReduce = concatMap divCorrectPreReduce'
 
 blkToCode :: Block -> String
 blkToCode (Para []) = ""
-blkToCode (Para (il@(Code _ s):ils)) = s ++ (blkToCode (Para ils))
-blkToCode (Para (cs@(Span (ident, classes, kvs) ils'): ils))
+blkToCode (Para ((Code _ s):ils)) = s ++ (blkToCode (Para ils))
+blkToCode (Para ((Span (_, classes, _) ils'): ils))
   | codeSpan `elem` classes =
     (init $ unlines $ map ilToCode ils') ++ (blkToCode (Para ils))
-blkToCode blk = ""
+blkToCode _ = ""
                                                  
 divCorrect' :: Block -> [Block]
 divCorrect' (Div (ident, classes, kvs) blks)
