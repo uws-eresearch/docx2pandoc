@@ -125,7 +125,7 @@ archiveToNumbering zf = do
                  (QName "num" (lookup "w" namespaces) (Just "w"))
                  numberingElem
       absNumElems = findChildren
-                    (QName "abstracNum" (lookup "w" namespaces) (Just "w"))
+                    (QName "abstractNum" (lookup "w" namespaces) (Just "w"))
                     numberingElem
       nums = mapMaybe id $ map (numElemToNum namespaces) numElems
       absNums = mapMaybe id $ map (absNumElemToAbsNum namespaces) absNumElems
@@ -193,7 +193,7 @@ filePathIsRel :: FilePath -> Bool
 filePathIsRel fp =
   let (dir, name) = splitFileName fp
   in
-   (dir == "word/_rels") && ((takeExtension name) == ".rel")
+   (dir == "word/_rels/") && ((takeExtension name) == ".rels")
 
 relElemToRelationship :: Element -> Maybe Relationship
 relElemToRelationship element | qName (elName element) == "Relationship" =
@@ -213,8 +213,6 @@ archiveToRelationships archive =
   in
    rels
    
-
-
 data Body = Body [BodyPart]
           deriving Show
 

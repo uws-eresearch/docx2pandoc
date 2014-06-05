@@ -7,6 +7,7 @@ import Text.Pandoc
 import Text.Pandoc.JSON
 import Text.Pandoc.Shared
 import Text.Pandoc.DocX.Parser
+import Text.Pandoc.DocX.ItemLists (blocksToBullets)
 import Data.Maybe
 import Data.Char (isSpace)
 import Data.List
@@ -39,7 +40,9 @@ strToInlines s  =
   let (v, w) = span (not . isSpace) s
       (x, y) = span isSpace w
   in
-   (Str v) : Space : (strToInlines y)
+      case null w of
+        True  -> [Str v]
+        False -> (Str v) : Space : (strToInlines y)
 
 runToInline :: DocX -> Run -> Inline
 runToInline _ (Run rs s) =
@@ -73,8 +76,6 @@ parPartsToInlines docx parparts =
   bottomUp spanCorrect $ bottomUp spanReduce
   $ map (parPartToInline docx) parparts
 
-
-
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
   Div (parStyleToDivAttr pPr) [Para (parPartsToInlines docx parparts)]
@@ -103,8 +104,11 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl _ _) =
 
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =
-  bottomUp divCorrect $ bottomUp divReduce
-  $ map (bodyPartToBlock docx) bps
+  bottomUp divCorrect $
+  bottomUp divReduce $
+  bottomUp divCorrectPreReduce $
+  bottomUp blocksToBullets $
+  map (bodyPartToBlock docx) bps
 
 docxToBlocks :: DocX -> [Block]
 docxToBlocks d@(DocX (Document _ body) _ _ _) = bodyToBlocks d body
@@ -113,6 +117,10 @@ archiveToBlocks :: Archive -> Maybe [Block]
 archiveToBlocks archive = do
   docx <- archiveToDocX archive
   return $ docxToBlocks docx
+
+-- spanCorrectPreReduce' :: Inline -> [Inline]
+-- spanCorrectPreReduce' 
+  
 
 spanReduce :: [Inline] -> [Inline]
 spanReduce [] = []
@@ -198,17 +206,22 @@ blksToInlines :: [Block] -> [Inline]
 blksToInlines (Para ils : blks) = ils
 blksToInlines (Plain ils : blks) = ils
 blksToInlines blks = []
-                                                 
-divCorrect' :: Block -> [Block]
-divCorrect' (Div ("", [], []) blks) = blks
-divCorrect' (Div (ident, classes, kvs) blks)
+
+divCorrectPreReduce' :: Block -> [Block]
+divCorrectPreReduce' (Div (ident, classes, kvs) blks)
   | isJust $ findHeaderClass classes =
     let n = fromJust $ findHeaderClass classes
     in
     [Header n (ident, delete ("Heading" ++ (show n)) classes, kvs) (blksToInlines blks)]
-  | otherwise =
-      [Div (ident, classes, kvs) blks]
-divCorrect' il = [il]
+  | otherwise = [Div (ident, classes, kvs) blks]
+divCorrectPreReduce' blk = [blk]
+
+divCorrectPreReduce :: [Block] -> [Block]
+divCorrectPreReduce = concatMap divCorrectPreReduce'
+
+                                                 
+divCorrect' :: Block -> [Block]
+divCorrect' blk = [blk]
 
 divCorrect :: [Block] -> [Block]
 divCorrect = concatMap divCorrect'
