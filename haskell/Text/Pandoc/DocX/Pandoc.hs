@@ -59,7 +59,7 @@ runToInline docx@(DocX _ notes _ _) (Footnote fnId) =
     Nothing        ->
       Note [Div ("", ["footnote"], []) []]
 runToInline docx@(DocX _ notes _ _) (Endnote fnId) =
-  case (getFootNote fnId notes) of
+  case (getEndNote fnId notes) of
     Just bodyParts ->
       Note [Div ("", ["endnote"], []) (map (bodyPartToBlock docx) bodyParts)]
     Nothing        ->
