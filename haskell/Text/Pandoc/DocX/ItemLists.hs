@@ -2,8 +2,8 @@ module Text.Pandoc.DocX.ItemLists
        where
 
 import Text.Pandoc.JSON
-import Text.Pandoc()
-import Data.List()
+import Text.Pandoc
+import Data.List
 import Control.Monad
 import Data.Maybe
 
@@ -74,18 +74,27 @@ separateBlocks blks = foldr separateBlocks' [[]] (reverse blks)
 
 flatToBullets' :: Integer -> [(Integer, Block)] -> [Block]
 flatToBullets' _ [] = []
-flatToBullets' num xs@((n, b@(Div _ (blk:[]))) : elems)
-  | n == num = blk : (flatToBullets' num elems)
+flatToBullets' num xs@((n, b) : elems)
+  | n == num = b : (flatToBullets' num elems)
   | otherwise = 
     let (children, remaining) = span (\(m, _) -> m > num) xs
     in
      case getListType b of
        Just (Enumerated attr) -> (OrderedList attr (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
        _ -> (BulletList (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
-flatToBullets' _ xs = map snd xs
 
 flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
 
+removeListItemDivs' :: Block -> [Block]
+removeListItemDivs' (Div (ident, classes, kvs) blks)
+  | "list-item" `elem` classes = blks
+removeListItemDivs' blk = [blk]
+
+removeListItemDivs :: [Block] -> [Block]
+removeListItemDivs = concatMap removeListItemDivs'
+
 blocksToBullets :: [Block] -> [Block]
-blocksToBullets blks = flatToBullets $ map (\b -> (getLevelN b, b)) blks
+blocksToBullets blks =
+  -- bottomUp removeListItemDivs $ 
+  flatToBullets $ map (\b -> (getLevelN b, b)) blks

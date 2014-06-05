@@ -4,8 +4,6 @@ module Text.Pandoc.DocX.Pandoc
 
 import Codec.Archive.Zip
 import Text.Pandoc
-import Text.Pandoc.JSON
-import Text.Pandoc.Shared
 import Text.Pandoc.DocX.Parser
 import Text.Pandoc.DocX.ItemLists (blocksToBullets)
 import Data.Maybe
@@ -44,9 +42,16 @@ strToInlines s  =
         True  -> [Str v]
         False -> (Str v) : Space : (strToInlines y)
 
+codeSpan :: String
+codeSpan = "VerbatimChar"
+
+codeDiv :: String
+codeDiv = "SourceCode"
+
 runToInline :: DocX -> Run -> Inline
-runToInline _ (Run rs s) =
-  Span (runStyleToSpanAttr rs) (strToInlines s)
+runToInline _ (Run rs s) 
+  | rStyle rs == Just codeSpan = Span (runStyleToSpanAttr rs) [Str s]
+  | otherwise =  Span (runStyleToSpanAttr rs) (strToInlines s)
 runToInline docx@(DocX _ notes _ _) (Footnote fnId) =
   case (getFootNote fnId notes) of
     Just bodyParts ->
@@ -146,24 +151,31 @@ spanReduce (s1@(Span (id1, classes1, kvs1) ils1) :
                            ils)
 spanReduce (il:ils) = il : (spanReduce ils)
 
+ilToCode :: Inline -> String
+ilToCode (Str s) = s
+ilToCode s = ""
+
+
+
 spanCorrect' :: Inline -> [Inline]
 spanCorrect' (Span ("", [], []) ils) = ils
 spanCorrect' (Span (ident, classes, kvs) ils)
   | "emph" `elem` classes =
     [Emph $ spanCorrect' $ Span (ident, (delete "emph" classes), kvs) ils]
   | "strong" `elem` classes =
-    [Strong $ spanCorrect' $ Span (ident, (delete "strong" classes), kvs) ils]
+      [Strong $ spanCorrect' $ Span (ident, (delete "strong" classes), kvs) ils]
   | "smallcaps" `elem` classes =
-    [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
+      [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
   | "strikeout" `elem` classes =
-    [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
+      [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
+  | codeSpan `elem` classes =
+         [Code (ident, (delete codeSpan classes), kvs) (init $ unlines $ map ilToCode ils)]
   | otherwise =
       [Span (ident, classes, kvs) ils]
 spanCorrect' il = [il]
 
 spanCorrect :: [Inline] -> [Inline]
 spanCorrect = concatMap spanCorrect'
-
 
 divReduce :: [Block] -> [Block]
 divReduce [] = []
@@ -219,8 +231,18 @@ divCorrectPreReduce' blk = [blk]
 divCorrectPreReduce :: [Block] -> [Block]
 divCorrectPreReduce = concatMap divCorrectPreReduce'
 
+blkToCode :: Block -> String
+blkToCode (Para []) = ""
+blkToCode (Para (il@(Code _ s):ils)) = s ++ (blkToCode (Para ils))
+blkToCode (Para (cs@(Span (ident, classes, kvs) ils'): ils))
+  | codeSpan `elem` classes =
+    (init $ unlines $ map ilToCode ils') ++ (blkToCode (Para ils))
+blkToCode blk = ""
                                                  
 divCorrect' :: Block -> [Block]
+divCorrect' (Div (ident, classes, kvs) blks)
+  | codeDiv `elem` classes =
+    [CodeBlock (ident, (delete codeDiv classes), kvs) (init $ unlines $ map blkToCode blks)]
 divCorrect' blk = [blk]
 
 divCorrect :: [Block] -> [Block]

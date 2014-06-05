@@ -7,7 +7,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import Data.List
 import System.FilePath
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.UTF8 as BU
 
 getNameSpace :: String -> Element -> Maybe String
 getNameSpace s element =
@@ -52,7 +52,7 @@ data Document = Document NameSpaces Body
 archiveToDocument :: Archive -> Maybe Document
 archiveToDocument zf = do
   entry <- findEntryByPath "word/document.xml" zf
-  docElem <- (parseXMLDoc . fromEntry) entry
+  docElem <- (parseXMLDoc . BU.toString . fromEntry) entry
   let namespaces = mapMaybe attrToNSPair (elAttribs docElem) 
   bodyElem <- findChild (QName "body" (lookup "w" namespaces) Nothing) docElem
   body <- elemToBody namespaces bodyElem
@@ -119,7 +119,7 @@ levelElemToLevel _ _ = Nothing
 archiveToNumbering :: Archive -> Maybe Numbering
 archiveToNumbering zf = do
   entry <- findEntryByPath "word/numbering.xml" zf
-  numberingElem <- (parseXMLDoc . fromEntry) entry
+  numberingElem <- (parseXMLDoc . BU.toString . fromEntry) entry
   let namespaces = mapMaybe attrToNSPair (elAttribs numberingElem)
       numElems = findChildren
                  (QName "num" (lookup "w" namespaces) (Just "w"))
@@ -166,9 +166,9 @@ elemToNotes _ _ _ = Nothing
 archiveToNotes :: Archive -> Notes
 archiveToNotes zf =
   let fnElem = findEntryByPath "word/footnotes.xml" zf
-               >>= (parseXMLDoc . fromEntry)
+               >>= (parseXMLDoc . BU.toString . fromEntry)
       enElem = findEntryByPath "word/endnotes.xml" zf
-               >>= (parseXMLDoc . fromEntry)
+               >>= (parseXMLDoc . BU.toString . fromEntry)
       fn_namespaces = case fnElem of
         Just e -> mapMaybe attrToNSPair (elAttribs e)
         Nothing -> []
@@ -208,7 +208,7 @@ archiveToRelationships :: Archive -> [Relationship]
 archiveToRelationships archive = 
   let relPaths = filter filePathIsRel (filesInArchive archive)
       entries  = map fromJust $ filter isJust $ map (\f -> findEntryByPath f archive) relPaths
-      relElems = map fromJust $ filter isJust $ map (parseXMLDoc . fromEntry) entries
+      relElems = map fromJust $ filter isJust $ map (parseXMLDoc . BU.toString . fromEntry) entries
       rels = map fromJust $ filter isJust $ map relElemToRelationship $ concatMap elChildren relElems
   in
    rels
