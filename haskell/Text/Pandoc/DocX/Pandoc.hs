@@ -5,7 +5,7 @@ module Text.Pandoc.DocX.Pandoc
 import Codec.Archive.Zip
 import Text.Pandoc
 import Text.Pandoc.DocX.Parser
-import Text.Pandoc.DocX.ItemLists (blocksToBullets)
+import Text.Pandoc.DocX.ItemLists (blocksToBullets,blocksToDefinitions)
 import Data.Maybe
 import Data.Char (isSpace)
 import Data.List
@@ -25,7 +25,7 @@ runStyleToSpanAttr rPr = ("",
 
 parStyleToDivAttr :: ParagraphStyle -> (String, [String], [(String, String)])
 parStyleToDivAttr pPr = ("",
-                          mapMaybe id [pStyle pPr],
+                          pStyle pPr,
                           case indent pPr of
                             Just n  -> [("indent", (show n))]
                             Nothing -> []
@@ -112,6 +112,7 @@ bodyToBlocks docx (Body bps) =
   bottomUp divCorrect $
   bottomUp divReduce $
   bottomUp divCorrectPreReduce $
+  bottomUp blocksToDefinitions $
   bottomUp blocksToBullets $
   map (bodyPartToBlock docx) bps
 

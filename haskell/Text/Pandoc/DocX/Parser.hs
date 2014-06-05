@@ -272,13 +272,13 @@ elemToBodyPart ns element
          $ filterChildrenName (isRow ns) element)
   | otherwise = Nothing
 
-data ParagraphStyle = ParagraphStyle { pStyle :: Maybe String
+data ParagraphStyle = ParagraphStyle { pStyle :: [String]
                                      , indent :: Maybe Integer
                                      }
                       deriving Show
 
 defaultParagraphStyle :: ParagraphStyle
-defaultParagraphStyle = ParagraphStyle { pStyle = Nothing
+defaultParagraphStyle = ParagraphStyle { pStyle = []
                                        , indent = Nothing
                                        }
 
@@ -288,8 +288,10 @@ elemToParagraphStyle ns element =
     Just pPr ->
       ParagraphStyle
       {pStyle =
-        findChild (QName "pStyle" (lookup "w" ns) (Just "w")) pPr >>=
-        findAttr (QName "val" (lookup "w" ns) (Just "w"))
+          mapMaybe id $
+          map
+          (findAttr (QName "val" (lookup "w" ns) (Just "w")))
+          (findChildren (QName "pStyle" (lookup "w" ns) (Just "w")) pPr)
       , indent =
         findChild (QName "ind" (lookup "w" ns) (Just "w")) pPr >>=
         findAttr (QName "left" (lookup "w" ns) (Just "w")) >>=

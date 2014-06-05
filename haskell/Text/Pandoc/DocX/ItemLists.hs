@@ -3,6 +3,7 @@ module Text.Pandoc.DocX.ItemLists
 
 import Text.Pandoc.JSON
 import Control.Monad
+import Data.List
 import Data.Maybe
 
 isListItem :: Block -> Bool
@@ -96,3 +97,35 @@ blocksToBullets :: [Block] -> [Block]
 blocksToBullets blks =
   -- bottomUp removeListItemDivs $ 
   flatToBullets $ map (\b -> (getLevelN b, b)) blks
+
+
+plainParaInlines :: Block -> [Inline]
+plainParaInlines (Plain ils) = ils
+plainParaInlines (Para ils) = ils
+plainParaInlines blk = []
+
+blocksToDefinitions' :: [([Inline], [[Block]])] -> [Block] -> [Block] -> [Block]
+blocksToDefinitions' []     acc [] = reverse acc
+blocksToDefinitions' defAcc acc [] =
+  reverse $ (DefinitionList (reverse defAcc)) : acc
+blocksToDefinitions' defAcc acc
+  ((Div (_, classes1, _) blks1) : (Div (ident2, classes2, kvs2) blks2) : blks)
+  | "DefinitionTerm" `elem` classes1 && "Definition"  `elem` classes2 =
+    let remainingAttr2 = (ident2, delete "Definition" classes2, kvs2)
+        pair = case remainingAttr2 == ("", [], []) of
+          True -> (concatMap plainParaInlines blks1, [blks2])
+          False -> (concatMap plainParaInlines blks1, [[Div remainingAttr2 blks2]])
+    in
+     blocksToDefinitions' (pair : defAcc) acc blks
+blocksToDefinitions' [] acc (b:blks) =
+  blocksToDefinitions' [] (b:acc) blks
+blocksToDefinitions' defAcc acc (b:blks) =
+  blocksToDefinitions' [] (b : (DefinitionList (reverse defAcc)) : acc) blks
+
+
+blocksToDefinitions :: [Block] -> [Block]
+blocksToDefinitions = blocksToDefinitions' [] []
+
+    
+    
+    
