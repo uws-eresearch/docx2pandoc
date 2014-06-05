@@ -10,28 +10,28 @@ import System.FilePath
 import qualified Data.ByteString.Lazy as B
 
 getNameSpace :: String -> Element -> Maybe String
-getNameSpace s elem =
+getNameSpace s element =
   let q = QName s Nothing (Just "xmlns")
   in
-   findAttr q elem
+   findAttr q element
 
 getQName :: String -> String -> Element -> Maybe QName
-getQName prefix name elem =
-  case getNameSpace prefix elem of
+getQName prefix name element =
+  case getNameSpace prefix element of
     Just uri -> Just $ QName name (Just uri) (Just prefix)
     Nothing  -> Nothing
 
 attrToNSPair :: Attr -> Maybe (String, String)
 attrToNSPair (Attr (QName s _ (Just "xmlns")) val) = Just (s, val)
-attrToNSPair attr = Nothing
+attrToNSPair _ = Nothing
 
 isQNameNS :: [(String, String)] -> NameSpaces -> QName -> Bool
 isQNameNS prefixPairs ns q = (qURI q, qName q) `elem`
                        (map (\(s, t) -> (lookup s ns, t)) prefixPairs)
 
 findChildrenNS :: [(String, String)] -> NameSpaces -> Element -> [Element]
-findChildrenNS prefixPairs ns elem =
-  filterChildrenName (isQNameNS prefixPairs ns) elem
+findChildrenNS prefixPairs ns element =
+  filterChildrenName (isQNameNS prefixPairs ns) element
 
 type NameSpaces = [(String, String)]
 
@@ -99,7 +99,7 @@ absNumElemToAbsNum ns element |
                  element
         levels = mapMaybe id $ map (levelElemToLevel ns) levelElems
     return $ AbstractNumb absNumId levels
-absNumElemToNum _ _ = Nothing
+absNumElemToAbsNum _ _ = Nothing
 
 levelElemToLevel :: NameSpaces -> Element -> Maybe Level
 levelElemToLevel ns element |
@@ -114,6 +114,7 @@ levelElemToLevel ns element |
                   >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
                   >>= (\s -> listToMaybe (map fst (reads s :: [(Integer, String)])))
       return (ilvl, fmt, txt, start)
+levelElemToLevel _ _ = Nothing
 
 archiveToNumbering :: Archive -> Maybe Numbering
 archiveToNumbering zf = do
@@ -127,7 +128,7 @@ archiveToNumbering zf = do
                     (QName "abstracNum" (lookup "w" namespaces) (Just "w"))
                     numberingElem
       nums = mapMaybe id $ map (numElemToNum namespaces) numElems
-      absNums = mapMaybe id $ map (absNumElemToNum namespaces) absNumElems
+      absNums = mapMaybe id $ map (absNumElemToAbsNum namespaces) absNumElems
   return $ Numbering namespaces nums absNums
 
 data Notes = Notes NameSpaces (Maybe [(String, [BodyPart])]) (Maybe [(String, [BodyPart])])
@@ -138,13 +139,13 @@ noteElemToNote ns element
   | qName (elName element) `elem` ["endnote", "footnote"] &&
     qURI (elName element) == (lookup "w" ns) =
       do
-        id <- findAttr (QName "id" (lookup "w" ns) (Just "w")) element
+        noteId <- findAttr (QName "id" (lookup "w" ns) (Just "w")) element
         let bps = map fromJust
                   $ filter isJust
                   $ map (elemToBodyPart ns)
                   $ filterChildrenName (isParOrTbl ns) element
-        return $ (id, bps)
-noteElemToNote ns element = Nothing
+        return $ (noteId, bps)
+noteElemToNote _ _ = Nothing
 
 getFootNote :: String -> Notes -> Maybe [BodyPart]
 getFootNote s (Notes _ fns _) = fns >>= (lookup s)
@@ -160,7 +161,7 @@ elemToNotes ns notetype element
       $ filter isJust
       $ map (noteElemToNote ns)
       $ findChildren (QName notetype (lookup "w" ns) (Just "w")) element
-elemToNotes ns notetype element = Nothing
+elemToNotes _ _ _ = Nothing
 
 archiveToNotes :: Archive -> Notes
 archiveToNotes zf =
@@ -284,8 +285,8 @@ defaultParagraphStyle = ParagraphStyle { pStyle = Nothing
                                        }
 
 elemToParagraphStyle :: NameSpaces -> Element -> ParagraphStyle
-elemToParagraphStyle ns elem =
-  case findChild (QName "pPr" (lookup "w" ns) (Just "w")) elem of
+elemToParagraphStyle ns element =
+  case findChild (QName "pPr" (lookup "w" ns) (Just "w")) element of
     Just pPr ->
       ParagraphStyle
       {pStyle =
@@ -309,7 +310,7 @@ data Row = Row Style [Cell]
            deriving Show
 
 elemToRow :: NameSpaces -> Element -> Maybe Row
-elemToRow ns elem = Nothing
+elemToRow _ _ = Nothing
 
 data Cell = Cell Style [BodyPart]
             deriving Show
@@ -342,8 +343,8 @@ defaultRunStyle = RunStyle { isBold = False
                            }
 
 elemToRunStyle :: NameSpaces -> Element -> RunStyle
-elemToRunStyle ns elem =
-  case findChild (QName "rPr" (lookup "w" ns) (Just "w")) elem of
+elemToRunStyle ns element =
+  case findChild (QName "rPr" (lookup "w" ns) (Just "w")) element of
     Just rPr ->
       RunStyle
       {
