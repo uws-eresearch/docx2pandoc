@@ -81,6 +81,10 @@ parPartsToInlines docx parparts =
   bottomUp spanCorrect $ bottomUp spanReduce
   $ map (parPartToInline docx) parparts
 
+rowToBlocks :: DocX -> Row -> [[Block]]
+rowToBlocks docx (Row _ cells) =
+  map (\(Cell bps) -> map (bodyPartToBlock docx) bps) cells
+
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
   Div (parStyleToDivAttr pPr) [Para (parPartsToInlines docx parparts)]
@@ -104,8 +108,25 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (ListItem pPr numId lvl parparts) =
    Div
    ("", ["list-item"], kvs)
    [bodyPartToBlock docx (Paragraph pPr parparts)]
-bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl _ _) =
-  Para [(Str "[TABLES NOT IMPLEMENTED]")]
+bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid []) =
+  Para []
+bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid (r:rs)) =
+  let caption = strToInlines cap
+      (Row rstyle _) = r
+      (hdr, rows) = case isTblHdrRow rstyle of
+        True -> (Just r, rs)
+        False -> (Nothing, r:rs)
+      hdrCells = case hdr of
+        Just r' -> rowToBlocks docx r'
+        Nothing -> []
+      cells = map (rowToBlocks docx) rows
+      size = length $ head (hdrCells : cells)
+      alignments = take size (repeat AlignDefault)
+      widths = take 5 (repeat 0) :: [Double]
+  in
+   Table caption alignments widths hdrCells cells
+  
+
 
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =

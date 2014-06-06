@@ -265,11 +265,14 @@ elemToBodyPart ns element
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
       let
+        caption = findChild (QName "tblPr" (lookup "w" ns) (Just "w")) element
+                  >>= findChild (QName "tblCaption" (lookup "w" ns) (Just "w"))
+                  >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
         grid = case findChild (QName "tblGrid" (lookup "w" ns) (Just "w")) element of
           Just g -> elemToTblGrid ns g
           Nothing -> []
       in
-       Just $ Tbl grid (mapMaybe (elemToRow ns) (elChildren element))
+       Just $ Tbl (fromMaybe "" caption) grid (mapMaybe (elemToRow ns) (elChildren element))
   | otherwise = Nothing
 
 data ParagraphStyle = ParagraphStyle { pStyle :: [String]
@@ -302,7 +305,7 @@ elemToParagraphStyle ns element =
 
 data BodyPart = Paragraph ParagraphStyle [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
-              | Tbl TblGrid [Row]
+              | Tbl String TblGrid [Row]
 
               deriving Show
 
