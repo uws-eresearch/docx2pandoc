@@ -117,6 +117,19 @@ blocksToDefinitions' defAcc acc
           False -> (concatMap plainParaInlines blks1, [[Div remainingAttr2 blks2]])
     in
      blocksToDefinitions' (pair : defAcc) acc blks
+blocksToDefinitions' defAcc acc
+  ((Div (ident2, classes2, kvs2) blks2) : blks)
+  | (not . null) defAcc && "Definition"  `elem` classes2 =
+    let remainingAttr2 = (ident2, delete "Definition" classes2, kvs2)
+        defItems2 = case remainingAttr2 == ("", [], []) of
+          True -> blks2
+          False -> [Div remainingAttr2 blks2]
+        ((defTerm, defItems):defs) = defAcc
+        defAcc' = case null defItems of
+          True -> (defTerm, [defItems2]) : defs
+          False -> (defTerm, init defItems ++ [last defItems ++ defItems2]) : defs
+    in
+     blocksToDefinitions' defAcc' acc blks
 blocksToDefinitions' [] acc (b:blks) =
   blocksToDefinitions' [] (b:acc) blks
 blocksToDefinitions' defAcc acc (b:blks) =
