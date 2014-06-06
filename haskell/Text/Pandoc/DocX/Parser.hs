@@ -264,12 +264,12 @@ elemToBodyPart ns element
          Nothing -> Just $ Paragraph parstyle parparts
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
-      Just
-      $ Tbl []
-      $ map fromJust
-      $ filter isJust
-      $ (map (elemToRow ns)
-         $ filterChildrenName (isRow ns) element)
+      let
+        grid = case findChild (QName "tblGrid" (lookup "w" ns) (Just "w")) element of
+          Just g -> elemToTblGrid ns g
+          Nothing -> []
+      in
+       Just $ Tbl grid (mapMaybe (elemToRow ns) (elChildren element))
   | otherwise = Nothing
 
 data ParagraphStyle = ParagraphStyle { pStyle :: [String]
@@ -295,25 +295,83 @@ elemToParagraphStyle ns element =
       , indent =
         findChild (QName "ind" (lookup "w" ns) (Just "w")) pPr >>=
         findAttr (QName "left" (lookup "w" ns) (Just "w")) >>=
-        (\s -> listToMaybe (map fst (reads s :: [(Integer, String)])))
+        stringToInteger
         }
     Nothing -> defaultParagraphStyle
 
 
 data BodyPart = Paragraph ParagraphStyle [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
-              | Tbl Style [Row]
+              | Tbl TblGrid [Row]
 
               deriving Show
 
-data Row = Row Style [Cell]
+type TblGrid = [Integer]
+
+stringToInteger :: String -> Maybe Integer
+stringToInteger s = listToMaybe $ map fst (reads s :: [(Integer, String)])
+
+elemToTblGrid :: NameSpaces -> Element -> TblGrid
+elemToTblGrid ns element
+  | qName (elName element) == "tblGrid" &&
+    qURI (elName element) == (lookup "w" ns) =
+      let
+        cols = findChildren (QName "gridCol" (lookup "w" ns) (Just "w")) element
+      in
+       mapMaybe (\e ->
+                  findAttr (QName "val" (lookup "w" ns) (Just ("w"))) e
+                  >>= stringToInteger
+                )
+       cols
+elemToTblGrid ns element = []
+
+data Row = Row RowStyle [Cell]
            deriving Show
 
+data RowStyle = RowStyle {isTblHdrRow :: Bool}
+              deriving Show
+
+defaultRowStyle :: RowStyle
+defaultRowStyle = RowStyle {isTblHdrRow = False}
+
+elemToRowStyle :: NameSpaces -> Element -> Maybe RowStyle
+elemToRowStyle ns element 
+    | qName (elName element) == "trPr" &&
+      qURI (elName element) == (lookup "w" ns) =
+        let hdrBool = 
+              case findChild (QName "tblHeader" (lookup "w" ns) (Just "w")) element of
+                Just headerElem ->
+                  case findAttr (QName "val" (lookup "w" ns) (Just "w")) headerElem of
+                    Just "false" -> False
+                    _            -> True
+                _  -> False
+        in
+         Just $ RowStyle {isTblHdrRow = hdrBool}
+elemToRowStyle _ _ = Nothing
+
+
+
 elemToRow :: NameSpaces -> Element -> Maybe Row
+elemToRow ns element
+  | qName (elName element) == "tr" &&
+    qURI (elName element) == (lookup "w" ns) =
+      let style =
+            findChild (QName "trPr" (lookup "w" ns) (Just "w")) element
+            >>= elemToRowStyle ns
+          cells = findChildren (QName "tc" (lookup "w" ns) (Just "w")) element
+      in
+       Just $ Row (fromMaybe defaultRowStyle style) (mapMaybe (elemToCell ns) cells)
 elemToRow _ _ = Nothing
 
-data Cell = Cell Style [BodyPart]
+data Cell = Cell [BodyPart]
             deriving Show
+
+elemToCell :: NameSpaces -> Element -> Maybe Cell
+elemToCell ns element
+  | qName (elName element) == "tc" &&
+    qURI (elName element) == (lookup "w" ns) =
+      Just $ Cell (mapMaybe (elemToBodyPart ns) (elChildren element))
+elemToCell _ _ = Nothing
 
 data ParPart = PlainRun Run
              | InternalHyperLink Anchor [Run]
