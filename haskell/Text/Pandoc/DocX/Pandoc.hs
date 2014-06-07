@@ -128,9 +128,10 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid (r:rs)) =
         Just r' -> rowToBlocksList docx r'
         Nothing -> []
       cells = map (rowToBlocksList docx) rows
-      size = case hdrCells of
-        [] -> length $ head $ head cells
-        _ -> length $ head hdrCells
+      
+      size = case null hdrCells of
+        True -> length $ head cells
+        False -> length $ hdrCells
 
       alignments = take size (repeat AlignDefault)
       widths = take size (repeat 0) :: [Double]
