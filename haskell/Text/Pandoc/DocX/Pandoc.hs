@@ -45,6 +45,9 @@ strToInlines s  =
 codeSpan :: String
 codeSpan = "VerbatimChar"
 
+blockQuoteDiv :: String
+blockQuoteDiv = "BlockQuote"
+
 codeDiv :: String
 codeDiv = "SourceCode"
 
@@ -271,6 +274,8 @@ blkToCode _ = ""
                                                  
 divCorrect' :: Block -> [Block]
 divCorrect' (Div (ident, classes, kvs) blks)
+  | blockQuoteDiv `elem` classes =
+    [BlockQuote [Div (ident, delete blockQuoteDiv classes, kvs) blks]]
   | codeDiv `elem` classes =
     [CodeBlock (ident, (delete codeDiv classes), kvs) (init $ unlines $ map blkToCode blks)]
 divCorrect' blk = [blk]
