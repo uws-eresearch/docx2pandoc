@@ -81,9 +81,17 @@ parPartsToInlines docx parparts =
   bottomUp spanCorrect $ bottomUp spanReduce
   $ map (parPartToInline docx) parparts
 
-rowToBlocks :: DocX -> Row -> [[Block]]
-rowToBlocks docx (Row _ cells) =
-  map (\(Cell bps) -> map (bodyPartToBlock docx) bps) cells
+cellToBlocks :: DocX -> Cell -> [Block]
+cellToBlocks docx (Cell bps) = map (bodyPartToBlock docx) bps
+
+rowToBlocksList :: DocX -> Row -> [[Block]]
+rowToBlocksList docx (Row _ cells) = map (cellToBlocks docx) cells
+
+-- rowToBlocks :: DocX -> Row -> [[Block]]
+-- rowToBlocks docx (Row _ cells) =
+--   map (\(Cell bps) -> map (bodyPartToBlock docx) bps) cells
+
+
 
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
@@ -117,9 +125,9 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid (r:rs)) =
         True -> (Just r, rs)
         False -> (Nothing, r:rs)
       hdrCells = case hdr of
-        Just r' -> rowToBlocks docx r'
+        Just r' -> rowToBlocksList docx r'
         Nothing -> []
-      cells = map (rowToBlocks docx) rows
+      cells = map (rowToBlocksList docx) rows
       size = case hdrCells of
         [] -> length $ head $ head cells
         _ -> length $ head hdrCells
@@ -128,8 +136,6 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid (r:rs)) =
       widths = take size (repeat 0) :: [Double]
   in
    Table caption alignments widths hdrCells cells
-  
-
 
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =

@@ -117,19 +117,21 @@ levelElemToLevel ns element |
 levelElemToLevel _ _ = Nothing
 
 archiveToNumbering :: Archive -> Maybe Numbering
-archiveToNumbering zf = do
-  entry <- findEntryByPath "word/numbering.xml" zf
-  numberingElem <- (parseXMLDoc . BU.toString . fromEntry) entry
-  let namespaces = mapMaybe attrToNSPair (elAttribs numberingElem)
-      numElems = findChildren
-                 (QName "num" (lookup "w" namespaces) (Just "w"))
-                 numberingElem
-      absNumElems = findChildren
-                    (QName "abstractNum" (lookup "w" namespaces) (Just "w"))
-                    numberingElem
-      nums = mapMaybe id $ map (numElemToNum namespaces) numElems
-      absNums = mapMaybe id $ map (absNumElemToAbsNum namespaces) absNumElems
-  return $ Numbering namespaces nums absNums
+archiveToNumbering zf =
+  case findEntryByPath "word/numbering.xml" zf of
+    Nothing -> Just $ Numbering [] [] []
+    Just entry -> do
+      numberingElem <- (parseXMLDoc . BU.toString . fromEntry) entry
+      let namespaces = mapMaybe attrToNSPair (elAttribs numberingElem)
+          numElems = findChildren
+                     (QName "num" (lookup "w" namespaces) (Just "w"))
+                     numberingElem
+          absNumElems = findChildren
+                        (QName "abstractNum" (lookup "w" namespaces) (Just "w"))
+                        numberingElem
+          nums = mapMaybe id $ map (numElemToNum namespaces) numElems
+          absNums = mapMaybe id $ map (absNumElemToAbsNum namespaces) absNumElems
+      return $ Numbering namespaces nums absNums
 
 data Notes = Notes NameSpaces (Maybe [(String, [BodyPart])]) (Maybe [(String, [BodyPart])])
            deriving Show
@@ -466,8 +468,6 @@ elemToParPart ns element
              Just relId -> Just $ ExternalHyperLink relId runs
              Nothing    -> Nothing
 elemToParPart _ _ = Nothing
-
-type NameSpace = Reader Element
 
 type Target = String
 type Anchor = String
