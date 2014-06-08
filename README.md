@@ -14,7 +14,7 @@ Usage
 `pandoc` with the desired output format. For example:
 
 ~~~
-docx2pandoc input.docx | pandoc -Ss --template-f json -t html 
+docx2pandoc input.docx | pandoc -Ss -f json -t html 
 ~~~
 
 Some words on how it works
