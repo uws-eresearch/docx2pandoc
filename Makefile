@@ -12,7 +12,8 @@ all: docx2pandoc
 
 .PHONY: clean
 clean:
-	rm src/$(DOCX2PANDOC:.hs=) $(SRC_HS_FILES:.hs=.hi) $(SRC_HS_FILES:.hs=.o)
+	rm -f $(DOCX2PANDOC:.hs=) $(SRC_HS_FILES:.hs=.hi) $(SRC_HS_FILES:.hs=.o)
 
 docx2pandoc: $(SRC_HS_FILES)
 	ghc -isrc src/$(DOCX2PANDOC) --make $(GHC_FLAGS)
+	mv src/$(DOCX2PANDOC:.hs=) .

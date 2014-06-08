@@ -119,9 +119,9 @@ bodyPartToBlock docx@(DocX _ _ numbering _) (ListItem pPr numId lvl parparts) =
    Div
    ("", ["list-item"], kvs)
    [bodyPartToBlock docx (Paragraph pPr parparts)]
-bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid []) =
+bodyPartToBlock _ (Tbl _ _ []) =
   Para []
-bodyPartToBlock docx@(DocX _ _ numbering _) (Tbl cap grid (r:rs)) =
+bodyPartToBlock docx (Tbl cap _ (r:rs)) =
   let caption = strToInlines cap
       (Row rstyle _) = r
       (hdr, rows) = case isTblHdrRow rstyle of

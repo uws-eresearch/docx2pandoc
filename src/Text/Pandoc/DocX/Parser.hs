@@ -3,7 +3,6 @@ module Text.Pandoc.DocX.Parser
 
 import Codec.Archive.Zip
 import Text.XML.Light
-import Control.Monad.Reader
 import Data.Maybe
 import Data.List
 import System.FilePath
@@ -328,7 +327,7 @@ elemToTblGrid ns element
                   >>= stringToInteger
                 )
        cols
-elemToTblGrid ns element = []
+elemToTblGrid _ _ = []
 
 data Row = Row RowStyle [Cell]
            deriving Show

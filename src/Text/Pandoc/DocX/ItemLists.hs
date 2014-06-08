@@ -102,7 +102,7 @@ blocksToBullets blks =
 plainParaInlines :: Block -> [Inline]
 plainParaInlines (Plain ils) = ils
 plainParaInlines (Para ils) = ils
-plainParaInlines blk = []
+plainParaInlines _ = []
 
 blocksToDefinitions' :: [([Inline], [[Block]])] -> [Block] -> [Block] -> [Block]
 blocksToDefinitions' []     acc [] = reverse acc
