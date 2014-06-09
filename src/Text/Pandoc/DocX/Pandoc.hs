@@ -91,6 +91,7 @@ parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
 
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
+  bottomUp spanRemove $
   bottomUp (makeImagesSelfContained docx) $ 
   bottomUp spanCorrect $
   bottomUp spanReduce $
@@ -167,6 +168,7 @@ makeImagesSelfContained _ inline = inline
 
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =
+  bottomUp divRemove $
   bottomUp divCorrect $
   bottomUp divReduce $
   bottomUp divCorrectPreReduce $
@@ -209,6 +211,16 @@ spanReduce (il:ils) = il : (spanReduce ils)
 ilToCode :: Inline -> String
 ilToCode (Str s) = s
 ilToCode _ = ""
+
+spanRemove' :: Inline -> [Inline]
+spanRemove' (Span (_, _, kvs) ils) =
+  case lookup "underline" kvs of
+    Just val -> [Span ("", [], [("underline", val)]) ils]
+    Nothing  -> ils
+spanRemove' il = [il]
+
+spanRemove :: [Inline] -> [Inline]
+spanRemove = concatMap spanRemove'
 
 spanCorrect' :: Inline -> [Inline]
 spanCorrect' (Span ("", [], []) ils) = ils
@@ -291,6 +303,17 @@ blkToCode (Para ((Span (_, classes, _) ils'): ils))
   | codeSpan `elem` classes =
     (init $ unlines $ map ilToCode ils') ++ (blkToCode (Para ils))
 blkToCode _ = ""
+
+divRemove' :: Block -> [Block]
+divRemove' (Div (_, _, kvs) blks) =
+  case lookup "indent" kvs of
+    Just val -> [Div ("", [], [("indent", val)]) blks]
+    Nothing  -> blks
+divRemove' blk = [blk]
+
+divRemove :: [Block] -> [Block]
+divRemove = concatMap divRemove'
+
                                                  
 divCorrect' :: Block -> [Block]
 divCorrect' (Div (ident, classes, kvs) blks)
