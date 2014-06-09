@@ -65,7 +65,7 @@ separateBlocks' :: Block -> [[Block]] -> [[Block]]
 separateBlocks' blk ([] : []) = [[blk]]
 separateBlocks' b@(BulletList _) acc = (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b@(OrderedList _ _) acc = (init acc) ++ [(last acc) ++ [b]]
-separateBlocks' b acc | getNumIdN b == 1 = (init acc) ++ [(last acc) ++ [b]]
+-- separateBlocks' b acc | getNumIdN b == 1 = (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b acc = acc ++ [[b]]
 
 separateBlocks :: [Block] -> [[Block]]
