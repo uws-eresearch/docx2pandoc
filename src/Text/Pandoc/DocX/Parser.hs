@@ -6,6 +6,7 @@ import Text.XML.Light
 import Data.Maybe
 import Data.List
 import System.FilePath
+import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.UTF8 as BU
 
 getNameSpace :: String -> Element -> Maybe String
@@ -34,16 +35,17 @@ findChildrenNS prefixPairs ns element =
 
 type NameSpaces = [(String, String)]
 
-data DocX = DocX Document Notes Numbering [Relationship]
+data DocX = DocX Document Notes Numbering [Relationship] Media
           deriving Show
 
 archiveToDocX :: Archive -> Maybe DocX
 archiveToDocX archive = do
-  doc <- archiveToDocument archive
   let notes = archiveToNotes archive
+      rels = archiveToRelationships archive
+      media = archiveToMedia archive
+  doc <- archiveToDocument archive
   numbering <- archiveToNumbering archive
-  let rels = archiveToRelationships archive
-  return $ DocX doc notes numbering rels
+  return $ DocX doc notes numbering rels media
 
 data Document = Document NameSpaces Body 
           deriving Show
@@ -56,6 +58,24 @@ archiveToDocument zf = do
   bodyElem <- findChild (QName "body" (lookup "w" namespaces) Nothing) docElem
   body <- elemToBody namespaces bodyElem
   return $ Document namespaces body
+
+type Media = [(FilePath, B.ByteString)]
+
+filePathIsMedia :: FilePath -> Bool
+filePathIsMedia fp =
+  let (dir, _) = splitFileName fp
+  in
+   (dir == "word/media/")
+
+getMediaPair :: Archive -> FilePath -> Maybe (FilePath, B.ByteString)
+getMediaPair zf fp =
+  case findEntryByPath fp zf of
+    Just e -> Just (fp, fromEntry e)
+    Nothing -> Nothing
+
+archiveToMedia :: Archive -> Media
+archiveToMedia zf =
+  mapMaybe (getMediaPair zf) (filter filePathIsMedia (filesInArchive zf))
 
 data Numbering = Numbering NameSpaces [Numb] [AbstractNumb]
                  deriving Show
@@ -380,6 +400,7 @@ elemToCell _ _ = Nothing
 data ParPart = PlainRun Run
              | InternalHyperLink Anchor [Run]
              | ExternalHyperLink RelId [Run]
+             | Drawing String
              deriving Show
 
 data Run = Run RunStyle String
@@ -445,8 +466,27 @@ elemToRun ns element
                 Nothing -> Just $ Run (elemToRunStyle ns element) ""
 elemToRun _ _ = Nothing
 
+elemToDrawing :: NameSpaces -> Element -> Maybe ParPart
+elemToDrawing ns element
+  | qName (elName element) == "drawing" &&
+    qURI (elName element) == (lookup "w" ns) =
+      let a_ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+      in
+       findElement (QName "blip" (Just a_ns) (Just "a")) element
+       >>= findAttr (QName "embed" (lookup "r" ns) (Just "r"))
+       >>= (\s -> Just $ Drawing s)
+elemToDrawing _ _ = Nothing
+
 
 elemToParPart :: NameSpaces -> Element -> Maybe ParPart
+elemToParPart ns element
+  | qName (elName element) == "r" &&
+    qURI (elName element) == (lookup "w" ns) =
+      case findChild (QName "drawing" (lookup "w" ns) (Just "w")) element of
+        Just drawingElem -> elemToDrawing ns drawingElem
+        Nothing -> do
+          r <- elemToRun ns element
+          return $ PlainRun r
 elemToParPart ns element
   | qName (elName element) == "r" &&
     qURI (elName element) == (lookup "w" ns) =

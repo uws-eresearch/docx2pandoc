@@ -3,12 +3,18 @@ module Text.Pandoc.DocX.Pandoc
        ) where
 
 import Codec.Archive.Zip
-import Text.Pandoc
+import Text.Pandoc.MIME
 import Text.Pandoc.DocX.Parser
 import Text.Pandoc.DocX.ItemLists (blocksToBullets,blocksToDefinitions)
 import Data.Maybe
 import Data.Char (isSpace)
 import Data.List
+import Text.Pandoc
+import Text.Pandoc.UTF8 (toString)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Base64
+import System.FilePath (combine)
 
 runStyleToSpanAttr :: RunStyle -> (String, [String], [(String, String)])
 runStyleToSpanAttr rPr = ("",
@@ -55,13 +61,13 @@ runToInline :: DocX -> Run -> Inline
 runToInline _ (Run rs s) 
   | rStyle rs == Just codeSpan = Span (runStyleToSpanAttr rs) [Str s]
   | otherwise =  Span (runStyleToSpanAttr rs) (strToInlines s)
-runToInline docx@(DocX _ notes _ _) (Footnote fnId) =
+runToInline docx@(DocX _ notes _ _ _ ) (Footnote fnId) =
   case (getFootNote fnId notes) of
     Just bodyParts ->
       Note [Div ("", ["footnote"], []) (map (bodyPartToBlock docx) bodyParts)]
     Nothing        ->
       Note [Div ("", ["footnote"], []) []]
-runToInline docx@(DocX _ notes _ _) (Endnote fnId) =
+runToInline docx@(DocX _ notes _ _ _) (Endnote fnId) =
   case (getEndNote fnId notes) of
     Just bodyParts ->
       Note [Div ("", ["endnote"], []) (map (bodyPartToBlock docx) bodyParts)]
@@ -70,9 +76,13 @@ runToInline docx@(DocX _ notes _ _) (Endnote fnId) =
 
 parPartToInline :: DocX -> ParPart -> Inline
 parPartToInline docx (PlainRun r) = runToInline docx r
+parPartToInline (DocX _ _ _ rels _) (Drawing relid) =
+  case lookupRelationship relid rels of
+    Just target -> Image [] (combine "word" target, "")
+    Nothing     -> Image [] ("", "")
 parPartToInline docx (InternalHyperLink anchor runs) =
   Link (map (runToInline docx) runs) (anchor, "")
-parPartToInline docx@(DocX _ _ _ rels) (ExternalHyperLink relid runs) =
+parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
   case lookupRelationship relid rels of
     Just target ->
       Link (map (runToInline docx) runs) (target, "")
@@ -81,8 +91,10 @@ parPartToInline docx@(DocX _ _ _ rels) (ExternalHyperLink relid runs) =
 
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
-  bottomUp spanCorrect $ bottomUp spanReduce
-  $ map (parPartToInline docx) parparts
+  bottomUp (makeImagesSelfContained docx) $ 
+  bottomUp spanCorrect $
+  bottomUp spanReduce $
+  map (parPartToInline docx) parparts
 
 cellToBlocks :: DocX -> Cell -> [Block]
 cellToBlocks docx (Cell bps) = map (bodyPartToBlock docx) bps
@@ -99,7 +111,7 @@ rowToBlocksList docx (Row _ cells) = map (cellToBlocks docx) cells
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
   Div (parStyleToDivAttr pPr) [Para (parPartsToInlines docx parparts)]
-bodyPartToBlock docx@(DocX _ _ numbering _) (ListItem pPr numId lvl parparts) =
+bodyPartToBlock docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parparts) =
   let
     kvs = case lookupLevel numId lvl numbering of
       Just (_, fmt, txt, Just start) -> [ ("level", lvl)
@@ -141,6 +153,18 @@ bodyPartToBlock docx (Tbl cap _ (r:rs)) =
   in
    Table caption alignments widths hdrCells cells
 
+makeImagesSelfContained :: DocX -> Inline -> Inline
+makeImagesSelfContained (DocX _ _ _ _ media) i@(Image alt (uri, title)) =
+  case lookup uri media of
+    Just bs -> case getMimeType uri of
+      Just mime ->  let data_uri =
+                          "data:" ++ mime ++ ";base64," ++ toString (encode $ BS.concat $ B.toChunks bs)
+                    in
+                     Image alt (data_uri, title)
+      Nothing  -> i
+    Nothing -> i
+makeImagesSelfContained _ inline = inline
+
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =
   bottomUp divCorrect $
@@ -151,16 +175,12 @@ bodyToBlocks docx (Body bps) =
   map (bodyPartToBlock docx) bps
 
 docxToBlocks :: DocX -> [Block]
-docxToBlocks d@(DocX (Document _ body) _ _ _) = bodyToBlocks d body
+docxToBlocks d@(DocX (Document _ body) _ _ _ _) = bodyToBlocks d body
 
 archiveToBlocks :: Archive -> Maybe [Block]
 archiveToBlocks archive = do
   docx <- archiveToDocX archive
   return $ docxToBlocks docx
-
--- spanCorrectPreReduce' :: Inline -> [Inline]
--- spanCorrectPreReduce' 
-  
 
 spanReduce :: [Inline] -> [Inline]
 spanReduce [] = []
