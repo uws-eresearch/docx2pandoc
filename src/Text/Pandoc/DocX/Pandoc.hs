@@ -147,7 +147,7 @@ bodyToBlocks docx (Body bps) =
   bottomUp divReduce $
   bottomUp divCorrectPreReduce $
   bottomUp blocksToDefinitions $
-  bottomUp blocksToBullets $
+  blocksToBullets $
   map (bodyPartToBlock docx) bps
 
 docxToBlocks :: DocX -> [Block]
