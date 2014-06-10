@@ -104,7 +104,7 @@ cellToBlocks :: DocX -> Cell -> [Block]
 cellToBlocks docx (Cell bps) = map (bodyPartToBlock docx) bps
 
 rowToBlocksList :: DocX -> Row -> [[Block]]
-rowToBlocksList docx (Row _ cells) = map (cellToBlocks docx) cells
+rowToBlocksList docx (Row cells) = map (cellToBlocks docx) cells
 
 -- rowToBlocks :: DocX -> Row -> [[Block]]
 -- rowToBlocks docx (Row _ cells) =
@@ -137,25 +137,14 @@ bodyPartToBlock docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parparts) 
    [bodyPartToBlock docx (Paragraph pPr parparts)]
 bodyPartToBlock _ (Tbl _ _ []) =
   Para []
-bodyPartToBlock docx (Tbl cap _ (r:rs)) =
+bodyPartToBlock docx (Tbl cap _ rows) =
   let caption = strToInlines cap
-      (Row rstyle _) = r
-      (hdr, rows) = case isTblHdrRow rstyle of
-        True -> (Just r, rs)
-        False -> (Nothing, r:rs)
-      hdrCells = case hdr of
-        Just r' -> rowToBlocksList docx r'
-        Nothing -> []
       cells = map (rowToBlocksList docx) rows
-      
-      size = case null hdrCells of
-        True -> length $ head cells
-        False -> length $ hdrCells
-
+      size = length $ head cells
       alignments = take size (repeat AlignDefault)
       widths = take size (repeat 0) :: [Double]
   in
-   Table caption alignments widths hdrCells cells
+   Table caption alignments widths [] cells
 
 makeImagesSelfContained :: DocX -> Inline -> Inline
 makeImagesSelfContained (DocX _ _ _ _ media) i@(Image alt (uri, title)) =

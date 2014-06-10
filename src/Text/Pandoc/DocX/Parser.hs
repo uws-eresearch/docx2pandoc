@@ -11,7 +11,6 @@ module Text.Pandoc.DocX.Parser ( DocX(..)
                                , RunStyle(..)
                                , ParagraphStyle(..)
                                , Row(..)
-                               , RowStyle(..)
                                , Cell(..)
                                , getFootNote
                                , getEndNote
@@ -344,42 +343,18 @@ elemToTblGrid ns element
        cols
 elemToTblGrid _ _ = []
 
-data Row = Row RowStyle [Cell]
+data Row = Row [Cell]
            deriving Show
-
-data RowStyle = RowStyle {isTblHdrRow :: Bool}
-              deriving Show
-
-defaultRowStyle :: RowStyle
-defaultRowStyle = RowStyle {isTblHdrRow = False}
-
-elemToRowStyle :: NameSpaces -> Element -> Maybe RowStyle
-elemToRowStyle ns element 
-    | qName (elName element) == "trPr" &&
-      qURI (elName element) == (lookup "w" ns) =
-        let hdrBool = 
-              case findChild (QName "tblHeader" (lookup "w" ns) (Just "w")) element of
-                Just headerElem ->
-                  case findAttr (QName "val" (lookup "w" ns) (Just "w")) headerElem of
-                    Just "false" -> False
-                    _            -> True
-                _  -> False
-        in
-         Just $ RowStyle {isTblHdrRow = hdrBool}
-elemToRowStyle _ _ = Nothing
-
 
 
 elemToRow :: NameSpaces -> Element -> Maybe Row
 elemToRow ns element
   | qName (elName element) == "tr" &&
     qURI (elName element) == (lookup "w" ns) =
-      let style =
-            findChild (QName "trPr" (lookup "w" ns) (Just "w")) element
-            >>= elemToRowStyle ns
-          cells = findChildren (QName "tc" (lookup "w" ns) (Just "w")) element
+      let 
+        cells = findChildren (QName "tc" (lookup "w" ns) (Just "w")) element
       in
-       Just $ Row (fromMaybe defaultRowStyle style) (mapMaybe (elemToCell ns) cells)
+       Just $ Row (mapMaybe (elemToCell ns) cells)
 elemToRow _ _ = Nothing
 
 data Cell = Cell [BodyPart]
