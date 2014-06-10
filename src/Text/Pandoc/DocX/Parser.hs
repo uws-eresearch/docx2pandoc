@@ -27,29 +27,10 @@ import System.FilePath
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.UTF8 as BU
 
-getNameSpace :: String -> Element -> Maybe String
-getNameSpace s element =
-  let q = QName s Nothing (Just "xmlns")
-  in
-   findAttr q element
-
-getQName :: String -> String -> Element -> Maybe QName
-getQName prefix name element =
-  case getNameSpace prefix element of
-    Just uri -> Just $ QName name (Just uri) (Just prefix)
-    Nothing  -> Nothing
-
 attrToNSPair :: Attr -> Maybe (String, String)
 attrToNSPair (Attr (QName s _ (Just "xmlns")) val) = Just (s, val)
 attrToNSPair _ = Nothing
 
-isQNameNS :: [(String, String)] -> NameSpaces -> QName -> Bool
-isQNameNS prefixPairs ns q = (qURI q, qName q) `elem`
-                       (map (\(s, t) -> (lookup s ns, t)) prefixPairs)
-
-findChildrenNS :: [(String, String)] -> NameSpaces -> Element -> [Element]
-findChildrenNS prefixPairs ns element =
-  filterChildrenName (isQNameNS prefixPairs ns) element
 
 type NameSpaces = [(String, String)]
 
@@ -270,10 +251,6 @@ elemToBody _ _ = Nothing
 isRunOrLink :: NameSpaces -> QName ->  Bool
 isRunOrLink ns q = qName q `elem` ["r", "hyperlink"] &&
                    qURI q == (lookup "w" ns)
-
-isRow :: NameSpaces -> QName ->  Bool
-isRow ns q = qName q `elem` ["tr"] &&
-             qURI q == (lookup "w" ns)
 
 elemToNumInfo :: NameSpaces -> Element -> Maybe (String, String)
 elemToNumInfo ns element
@@ -529,5 +506,4 @@ elemToParPart _ _ = Nothing
 type Target = String
 type Anchor = String
 type RelId = String
-type Style = [String]
                
