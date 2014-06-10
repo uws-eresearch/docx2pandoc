@@ -79,9 +79,12 @@ flatToBullets' num xs@((n, b) : elems)
     let (children, remaining) = span (\(m, _) -> m > num) xs
     in
      case getListType b of
-       Just (Enumerated attr) -> (OrderedList attr (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
-       _ -> (BulletList (separateBlocks $ flatToBullets' n children)) : (flatToBullets' num remaining)
-
+       Just (Enumerated attr) ->
+         (OrderedList attr (separateBlocks $ flatToBullets' n children)) :
+         (flatToBullets' num remaining)
+       _ ->
+         (BulletList (separateBlocks $ flatToBullets' n children)) :
+         (flatToBullets' num remaining)
 flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
 
