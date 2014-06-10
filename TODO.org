@@ -8,7 +8,7 @@
   - [-] Table header rows
   - [ ] Horizontal alignment in table columns
   - [ ] Table columns widths
-  - [ ] Internal link to a section heading
+  - [X] Internal link to a section heading
   - [ ] Internal link to a bookmark.
   - [ ] Make embedding images a user option.
   - [-] Hard line breaks
