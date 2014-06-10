@@ -92,7 +92,7 @@ parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
   bottomUp spanRemove $
-  bottomUp (makeImagesSelfContained docx) $ 
+  -- bottomUp (makeImagesSelfContained docx) $ 
   bottomUp spanCorrect $
   bottomUp spanReduce $
   map (parPartToInline docx) parparts
