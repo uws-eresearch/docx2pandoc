@@ -65,6 +65,29 @@ getListType b@(Div (_, _, kvs) _) | isListItem b =
          Nothing -> Nothing
      _ -> Nothing
 getListType _ = Nothing
+
+listParagraphDivs :: [String]
+listParagraphDivs = ["ListParagraph"]
+
+-- This is a first stab at going through and attaching meaning to list
+-- paragraphs, without an item marker, following a list item. We
+-- assume that these are paragraphs in the same item.
+
+handleListParagraphs :: [Block] -> [Block]
+handleListParagraphs [] = []
+handleListParagraphs (
+  (Div attr1@(_, classes1, _) blks1) :
+  (Div (ident2, classes2, kvs2) blks2) :
+  blks
+  ) | "list-item" `elem` classes1 &&
+    not ("list-item" `elem` classes2) &&
+    (not . null) (listParagraphDivs `intersect` classes2) =
+      -- We don't want to keep this indent.
+      let newDiv2 =
+            (Div (ident2, classes2, filter (\kv -> fst kv /= "indent") kvs2) blks2)
+      in
+       handleListParagraphs ((Div attr1 (blks1 ++ [newDiv2])) : blks)
+handleListParagraphs (blk:blks) = blk : (handleListParagraphs blks)
                   
 separateBlocks' :: Block -> [[Block]] -> [[Block]]
 separateBlocks' blk ([] : []) = [[blk]]
@@ -99,7 +122,7 @@ flatToBullets elems = flatToBullets' (-1) elems
 blocksToBullets :: [Block] -> [Block]
 blocksToBullets blks =
   -- bottomUp removeListItemDivs $ 
-  flatToBullets $ map (\b -> (getLevelN b, b)) blks
+  flatToBullets $ map (\b -> (getLevelN b, b)) (handleListParagraphs blks)
 
 
 plainParaInlines :: Block -> [Inline]
