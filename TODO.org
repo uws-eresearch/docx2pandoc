@@ -2,7 +2,7 @@
 
   - [X] Superscript
   - [X] Subscript
-  - [ ] Multiparagraph list items (using unitemized paragraphs)
+  - [X] Multiparagraph list items (using unitemized paragraphs)
   - [X] Multiparagraph list items (using invisible bullets)
   - [ ] Separate adjacent lists.
   - [-] Table header rows
