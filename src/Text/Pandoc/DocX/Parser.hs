@@ -490,7 +490,7 @@ elemToRun ns element
                   case
                     findChild (QName "br" (lookup "w" ns) (Just "w")) element
                   of
-                    Just elem -> Just LnBrk
+                    Just _ -> Just LnBrk
                     Nothing -> Just $ Run (elemToRunStyle ns element) ""
 elemToRun _ _ = Nothing
 
