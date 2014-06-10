@@ -323,10 +323,6 @@ testBitMask bitMaskS n =
   case (reads ("0x" ++ bitMaskS) :: [(Int, String)]) of
     []            -> False
     ((n', _) : _) -> ((n' .|. n) /= 0)
-          
-
-
-
 
 data ParagraphStyle = ParagraphStyle { pStyle :: [String]
                                      , indent :: Maybe Integer
