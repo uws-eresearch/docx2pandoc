@@ -10,4 +10,4 @@
   - [ ] Internal link to a section heading
   - [ ] Internal link to a bookmark.
   - [ ] Make embedding images a user option.
-  - [ ] Hard line breaks
+  - [-] Hard line breaks
