@@ -95,7 +95,11 @@ parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
   bottomUp spanRemove $
-  -- bottomUp (makeImagesSelfContained docx) $ 
+  --
+  -- We're going to skip data-uri's for now. It should be an option,
+  -- not mandatory.
+  --
+  --bottomUp (makeImagesSelfContained docx) $
   bottomUp spanCorrect $
   bottomUp spanReduce $
   map (parPartToInline docx) parparts
@@ -105,12 +109,6 @@ cellToBlocks docx (Cell bps) = map (bodyPartToBlock docx) bps
 
 rowToBlocksList :: DocX -> Row -> [[Block]]
 rowToBlocksList docx (Row cells) = map (cellToBlocks docx) cells
-
--- rowToBlocks :: DocX -> Row -> [[Block]]
--- rowToBlocks docx (Row _ cells) =
---   map (\(Cell bps) -> map (bodyPartToBlock docx) bps) cells
-
-
 
 bodyPartToBlock :: DocX -> BodyPart -> Block
 bodyPartToBlock docx (Paragraph pPr parparts) =
