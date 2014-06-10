@@ -322,7 +322,7 @@ testBitMask :: String -> Int -> Bool
 testBitMask bitMaskS n =
   case (reads ("0x" ++ bitMaskS) :: [(Int, String)]) of
     []            -> False
-    ((n', s) : _) -> ((n' .|. n) /= 0)
+    ((n', _) : _) -> ((n' .|. n) /= 0)
           
 
 
