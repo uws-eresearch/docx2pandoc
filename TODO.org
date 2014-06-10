@@ -4,7 +4,7 @@
   - [X] Subscript
   - [ ] Multiparagraph list items (using unitemized paragraphs)
   - [ ] Multiparagraph list items (using invisible bullets)
-  - [ ] Table header rows
+  - [-] Table header rows
   - [ ] Horizontal alignment in table columns
   - [ ] Table columns widths
   - [ ] Internal link to a section heading
