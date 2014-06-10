@@ -2,6 +2,7 @@ module Text.Pandoc.DocX.Parser ( DocX(..)
                                , Document(..)
                                , Body(..)
                                , BodyPart(..)
+                               , TblLook(..)
                                , ParPart(..)
                                , Run(..)
                                , Notes
@@ -23,6 +24,7 @@ import Text.XML.Light
 import Data.Maybe
 import Data.List
 import System.FilePath
+import Data.Bits ((.|.))
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.UTF8 as BU
 
@@ -283,12 +285,48 @@ elemToBodyPart ns element
         caption = findChild (QName "tblPr" (lookup "w" ns) (Just "w")) element
                   >>= findChild (QName "tblCaption" (lookup "w" ns) (Just "w"))
                   >>= findAttr (QName "val" (lookup "w" ns) (Just "w"))
-        grid = case findChild (QName "tblGrid" (lookup "w" ns) (Just "w")) element of
-          Just g -> elemToTblGrid ns g
-          Nothing -> []
+        grid = case
+          findChild (QName "tblGrid" (lookup "w" ns) (Just "w")) element
+          of
+            Just g -> elemToTblGrid ns g
+            Nothing -> []
+        tblLook = findChild (QName "tblPr" (lookup "w" ns) (Just "w")) element
+                  >>= findChild (QName "tblLook" (lookup "w" ns) (Just "w"))
+                  >>= elemToTblLook ns
       in
-       Just $ Tbl (fromMaybe "" caption) grid (mapMaybe (elemToRow ns) (elChildren element))
+       Just $ Tbl
+       (fromMaybe "" caption)
+       grid
+       (fromMaybe defaultTblLook tblLook)
+       (mapMaybe (elemToRow ns) (elChildren element))
   | otherwise = Nothing
+
+elemToTblLook :: NameSpaces -> Element -> Maybe TblLook
+elemToTblLook ns element
+  | qName (elName element) == "tblLook" &&
+    qURI (elName element) == (lookup "w" ns) =
+      let firstRow = findAttr (QName "firstRow" (lookup "w" ns) (Just "w")) element
+          val = findAttr (QName "val" (lookup "w" ns) (Just "w")) element
+          firstRowFmt = 
+            case firstRow of
+              Just "1" -> True
+              Just  _  -> False
+              Nothing -> case val of
+                Just bitMask -> testBitMask bitMask 0x020
+                Nothing      -> False
+      in
+       Just $ TblLook{firstRowFormatting = firstRowFmt}
+elemToTblLook _ _ = Nothing
+
+testBitMask :: String -> Int -> Bool
+testBitMask bitMaskS n =
+  case (reads ("0x" ++ bitMaskS) :: [(Int, String)]) of
+    []            -> False
+    ((n', s) : _) -> ((n' .|. n) /= 0)
+          
+
+
+
 
 data ParagraphStyle = ParagraphStyle { pStyle :: [String]
                                      , indent :: Maybe Integer
@@ -320,11 +358,17 @@ elemToParagraphStyle ns element =
 
 data BodyPart = Paragraph ParagraphStyle [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
-              | Tbl String TblGrid [Row]
+              | Tbl String TblGrid TblLook [Row]
 
               deriving Show
 
 type TblGrid = [Integer]
+
+data TblLook = TblLook {firstRowFormatting::Bool}
+              deriving Show
+
+defaultTblLook :: TblLook
+defaultTblLook = TblLook{firstRowFormatting = False}
 
 stringToInteger :: String -> Maybe Integer
 stringToInteger s = listToMaybe $ map fst (reads s :: [(Integer, String)])
