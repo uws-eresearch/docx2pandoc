@@ -2,18 +2,18 @@ module Text.Pandoc.DocX.Pandoc
        ( archiveToBlocks
        ) where
 
-import Codec.Archive.Zip
-import Text.Pandoc.MIME
+import Codec.Archive.Zip (Archive)
+import Text.Pandoc.MIME (getMimeType)
 import Text.Pandoc.DocX.Parser
 import Text.Pandoc.DocX.ItemLists
-import Data.Maybe
+import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Char (isSpace)
-import Data.List
+import Data.List (delete, isPrefixOf, (\\), intersect)
 import Text.Pandoc
 import Text.Pandoc.UTF8 (toString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
-import Data.ByteString.Base64
+import Data.ByteString.Base64 (encode)
 import System.FilePath (combine)
 
 runStyleToSpanAttr :: RunStyle -> (String, [String], [(String, String)])
