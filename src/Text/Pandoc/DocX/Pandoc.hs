@@ -5,7 +5,7 @@ module Text.Pandoc.DocX.Pandoc
 import Codec.Archive.Zip
 import Text.Pandoc.MIME
 import Text.Pandoc.DocX.Parser
-import Text.Pandoc.DocX.ItemLists (blocksToBullets,blocksToDefinitions)
+import Text.Pandoc.DocX.ItemLists
 import Data.Maybe
 import Data.Char (isSpace)
 import Data.List

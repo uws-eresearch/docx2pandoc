@@ -1,5 +1,5 @@
-module Text.Pandoc.DocX.ItemLists
-       where
+module Text.Pandoc.DocX.ItemLists ( blocksToBullets
+                                  , blocksToDefinitions) where
 
 import Text.Pandoc.JSON
 import Control.Monad
@@ -84,14 +84,6 @@ flatToBullets' num xs@((n, b) : elems)
 
 flatToBullets :: [(Integer, Block)] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
-
-removeListItemDivs' :: Block -> [Block]
-removeListItemDivs' (Div (_, classes, _) blks)
-  | "list-item" `elem` classes = blks
-removeListItemDivs' blk = [blk]
-
-removeListItemDivs :: [Block] -> [Block]
-removeListItemDivs = concatMap removeListItemDivs'
 
 blocksToBullets :: [Block] -> [Block]
 blocksToBullets blks =
