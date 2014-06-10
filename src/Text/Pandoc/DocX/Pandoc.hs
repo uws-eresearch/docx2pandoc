@@ -60,6 +60,7 @@ codeDivs :: [String]
 codeDivs = ["SourceCode"]
 
 runToInline :: DocX -> Run -> Inline
+runToInline _ LnBrk = LineBreak
 runToInline _ (Run rs s) 
   | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
     Span (runStyleToSpanAttr rs) [Str s]
