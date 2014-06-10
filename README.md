@@ -24,7 +24,7 @@ make this available to your output file, run something like the
 following, in your output directory
 
 ~~~
-unzip input.docx "/word/media/*"
+unzip input.docx "word/media/*"
 ~~~
 
 Some words on how it works
