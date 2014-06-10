@@ -2,6 +2,7 @@ module Text.Pandoc.DocX.ItemLists ( blocksToBullets
                                   , blocksToDefinitions) where
 
 import Text.Pandoc.JSON
+import Text.Pandoc.Shared (trim)
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -27,6 +28,10 @@ getNumIdN :: Block -> Integer
 getNumIdN b = case getNumId b of
   Just n -> n
   Nothing -> -1
+
+getText :: Block -> Maybe String
+getText (Div (_, _, kvs) _) = lookup "text" kvs
+getText _ = Nothing
 
 data ListType = Itemized | Enumerated ListAttributes
 
@@ -65,7 +70,10 @@ separateBlocks' :: Block -> [[Block]] -> [[Block]]
 separateBlocks' blk ([] : []) = [[blk]]
 separateBlocks' b@(BulletList _) acc = (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b@(OrderedList _ _) acc = (init acc) ++ [(last acc) ++ [b]]
--- separateBlocks' b acc | getNumIdN b == 1 = (init acc) ++ [(last acc) ++ [b]]
+-- The following is for the invisible bullet lists. This is how
+-- pandoc-generated ooxml does multiparagraph item lists.
+separateBlocks' b acc | liftM trim (getText b) == Just "" =
+  (init acc) ++ [(last acc) ++ [b]]
 separateBlocks' b acc = acc ++ [[b]]
 
 separateBlocks :: [Block] -> [[Block]]
