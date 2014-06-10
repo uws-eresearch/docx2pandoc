@@ -17,6 +17,16 @@ Usage
 docx2pandoc input.docx | pandoc -Ss -f json -t html 
 ~~~
 
+For the time being, docx2pandoc does not embed images into the output
+files, since this can result in size and memory problems. It refers
+instead to an image in the `word/media` file in the docx archive. To
+make this available to your output file, run something like the
+following, in your output directory
+
+~~~
+unzip input.docx "/word/media/*"
+~~~
+
 Some words on how it works
 --------------------------
 
