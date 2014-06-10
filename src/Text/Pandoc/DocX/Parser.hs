@@ -514,12 +514,6 @@ elemToParPart ns element
           r <- elemToRun ns element
           return $ PlainRun r
 elemToParPart ns element
-  | qName (elName element) == "r" &&
-    qURI (elName element) == (lookup "w" ns) =
-      do
-        r <- elemToRun ns element
-        return $ PlainRun r
-elemToParPart ns element
   | qName (elName element) == "hyperlink" &&
     qURI (elName element) == (lookup "w" ns) =
       let runs = map fromJust $ filter isJust $ map (elemToRun ns)
