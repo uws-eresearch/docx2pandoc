@@ -48,18 +48,19 @@ strToInlines s  =
         True  -> [Str v]
         False -> (Str v) : Space : (strToInlines y)
 
-codeSpan :: String
-codeSpan = "VerbatimChar"
+codeSpans :: [String]
+codeSpans = ["VerbatimChar"]
 
-blockQuoteDiv :: String
-blockQuoteDiv = "BlockQuote"
+blockQuoteDivs :: [String]
+blockQuoteDivs = ["Quote", "BlockQuote"]
 
-codeDiv :: String
-codeDiv = "SourceCode"
+codeDivs :: [String]
+codeDivs = ["SourceCode"]
 
 runToInline :: DocX -> Run -> Inline
 runToInline _ (Run rs s) 
-  | rStyle rs == Just codeSpan = Span (runStyleToSpanAttr rs) [Str s]
+  | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
+    Span (runStyleToSpanAttr rs) [Str s]
   | otherwise =  Span (runStyleToSpanAttr rs) (strToInlines s)
 runToInline docx@(DocX _ notes _ _ _ ) (Footnote fnId) =
   case (getFootNote fnId notes) of
@@ -233,8 +234,8 @@ spanCorrect' (Span (ident, classes, kvs) ils)
       [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
   | "strikeout" `elem` classes =
       [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
-  | codeSpan `elem` classes =
-         [Code (ident, (delete codeSpan classes), kvs) (init $ unlines $ map ilToCode ils)]
+  | (not . null) (codeSpans `intersect` classes) =
+         [Code (ident, (classes \\ codeSpans), kvs) (init $ unlines $ map ilToCode ils)]
   | otherwise =
       [Span (ident, classes, kvs) ils]
 spanCorrect' il = [il]
@@ -300,7 +301,7 @@ blkToCode :: Block -> String
 blkToCode (Para []) = ""
 blkToCode (Para ((Code _ s):ils)) = s ++ (blkToCode (Para ils))
 blkToCode (Para ((Span (_, classes, _) ils'): ils))
-  | codeSpan `elem` classes =
+  | (not . null) (codeSpans `intersect` classes) =
     (init $ unlines $ map ilToCode ils') ++ (blkToCode (Para ils))
 blkToCode _ = ""
 
@@ -317,10 +318,10 @@ divRemove = concatMap divRemove'
                                                  
 divCorrect' :: Block -> [Block]
 divCorrect' (Div (ident, classes, kvs) blks)
-  | blockQuoteDiv `elem` classes =
-    [BlockQuote [Div (ident, delete blockQuoteDiv classes, kvs) blks]]
-  | codeDiv `elem` classes =
-    [CodeBlock (ident, (delete codeDiv classes), kvs) (init $ unlines $ map blkToCode blks)]
+  | (not . null) (blockQuoteDivs `intersect` classes) =
+    [BlockQuote [Div (ident, classes \\ blockQuoteDivs, kvs) blks]]
+  | (not . null) (codeDivs `intersect` classes) =
+    [CodeBlock (ident, (classes \\ codeDivs), kvs) (init $ unlines $ map blkToCode blks)]
 divCorrect' blk = [blk]
 
 divCorrect :: [Block] -> [Block]
