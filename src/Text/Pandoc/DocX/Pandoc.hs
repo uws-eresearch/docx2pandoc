@@ -23,6 +23,8 @@ runStyleToSpanAttr rPr = ("",
                             if isItalic rPr then (Just "emph") else Nothing,
                             if isSmallCaps rPr then (Just "smallcaps") else Nothing,
                             if isStrike rPr then (Just "strike") else Nothing,
+                            if isSuperScript rPr then (Just "superscript") else Nothing,
+                            if isSubScript rPr then (Just "subscript") else Nothing,
                             rStyle rPr],
                           case underline rPr of
                             Just fmt -> [("underline", fmt)]
@@ -234,6 +236,10 @@ spanCorrect' (Span (ident, classes, kvs) ils)
       [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
   | "strikeout" `elem` classes =
       [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
+  | "superscript" `elem` classes =
+      [Superscript $ spanCorrect' $ Span (ident, (delete "superscript" classes), kvs) ils]
+  | "subscript" `elem` classes =
+      [Subscript $ spanCorrect' $ Span (ident, (delete "subscript" classes), kvs) ils]
   | (not . null) (codeSpans `intersect` classes) =
          [Code (ident, (classes \\ codeSpans), kvs) (init $ unlines $ map ilToCode ils)]
   | otherwise =

@@ -407,6 +407,8 @@ data RunStyle = RunStyle { isBold :: Bool
                          , isItalic :: Bool
                          , isSmallCaps :: Bool
                          , isStrike :: Bool
+                         , isSuperScript :: Bool
+                         , isSubScript :: Bool
                          , underline :: Maybe String
                          , rStyle :: Maybe String }
                 deriving Show
@@ -416,6 +418,8 @@ defaultRunStyle = RunStyle { isBold = False
                            , isItalic = False
                            , isSmallCaps = False
                            , isStrike = False
+                           , isSuperScript = False
+                           , isSubScript = False
                            , underline = Nothing
                            , rStyle = Nothing
                            }
@@ -430,6 +434,14 @@ elemToRunStyle ns element =
       , isItalic = isJust $ findChild (QName "i" (lookup "w" ns) (Just "w")) rPr
       , isSmallCaps = isJust $ findChild (QName "smallCaps" (lookup "w" ns) (Just "w")) rPr
       , isStrike = isJust $ findChild (QName "strike" (lookup "w" ns) (Just "w")) rPr
+      , isSuperScript =
+        (Just "superscript" ==
+        (findChild (QName "vertAlign" (lookup "w" ns) (Just "w")) rPr >>=
+         findAttr (QName "val" (lookup "w" ns) (Just "w"))))
+      , isSubScript =
+        (Just "subscript" ==
+        (findChild (QName "vertAlign" (lookup "w" ns) (Just "w")) rPr >>=
+         findAttr (QName "val" (lookup "w" ns) (Just "w"))))
       , underline =
         findChild (QName "u" (lookup "w" ns) (Just "w")) rPr >>=
         findAttr (QName "val" (lookup "w" ns) (Just "w"))
