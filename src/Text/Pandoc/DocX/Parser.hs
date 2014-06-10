@@ -267,18 +267,35 @@ elemToNumInfo ns element
         return (numId, lvl)
 elemToNumInfo _ _ = Nothing
 
+isBookMarkTag :: NameSpaces -> QName -> Bool
+isBookMarkTag ns q = qName q `elem` ["bookmarkStart", "bookmarkEnd"] &&
+                     qURI q == (lookup "w" ns)
+
+parChildrenToBookmark :: NameSpaces -> [Element] -> BookMark
+parChildrenToBookmark ns (bms : bme : _)
+  | qName (elName bms) == "bookmarkStart" &&
+    qURI (elName bms) == (lookup "w" ns) &&
+    qName (elName bme) == "bookmarkEnd" &&
+    qURI (elName bme) == (lookup "w" ns) = do
+      bmId <- findAttr (QName "id" (lookup "w" ns) (Just "w")) bms
+      bmName <- findAttr (QName "name" (lookup "w" ns) (Just "w")) bms
+      return $ (bmId, bmName)
+parChildrenToBookmark _ _ = Nothing
+
 elemToBodyPart :: NameSpaces -> Element ->  Maybe BodyPart
 elemToBodyPart ns element
   | qName (elName element) == "p" &&
     qURI (elName element) == (lookup "w" ns) =
       let parstyle = elemToParagraphStyle ns element
+          bookmark = parChildrenToBookmark ns
+                     $ filterChildrenName (isBookMarkTag ns) element
           parparts = mapMaybe id
                      $ map (elemToParPart ns)
                      $ filterChildrenName (isRunOrLink ns) element
       in
        case elemToNumInfo ns element of
          Just (numId, lvl) -> Just $ ListItem parstyle numId lvl parparts
-         Nothing -> Just $ Paragraph parstyle parparts
+         Nothing -> Just $ Paragraph parstyle bookmark parparts
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
       let
@@ -352,11 +369,13 @@ elemToParagraphStyle ns element =
     Nothing -> defaultParagraphStyle
 
 
-data BodyPart = Paragraph ParagraphStyle [ParPart]
+data BodyPart = Paragraph ParagraphStyle BookMark [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
               | Tbl String TblGrid TblLook [Row]
 
               deriving Show
+
+type BookMark = Maybe (String, String) -- id, anchor
 
 type TblGrid = [Integer]
 

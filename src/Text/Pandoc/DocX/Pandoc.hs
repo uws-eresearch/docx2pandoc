@@ -112,7 +112,11 @@ rowToBlocksList :: DocX -> Row -> [[Block]]
 rowToBlocksList docx (Row cells) = map (cellToBlocks docx) cells
 
 bodyPartToBlock :: DocX -> BodyPart -> Block
-bodyPartToBlock docx (Paragraph pPr parparts) =
+bodyPartToBlock docx (Paragraph pPr (Just (_, target)) parparts) =
+  let (_, classes, kvs) = parStyleToDivAttr pPr
+  in
+   Div (target, classes, kvs) [Para (parPartsToInlines docx parparts)]
+bodyPartToBlock docx (Paragraph pPr Nothing parparts) =
   Div (parStyleToDivAttr pPr) [Para (parPartsToInlines docx parparts)]
 bodyPartToBlock docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parparts) =
   let
@@ -133,7 +137,7 @@ bodyPartToBlock docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parparts) 
   in
    Div
    ("", ["list-item"], kvs)
-   [bodyPartToBlock docx (Paragraph pPr parparts)]
+   [bodyPartToBlock docx (Paragraph pPr Nothing parparts)]
 bodyPartToBlock _ (Tbl _ _ _ []) =
   Para []
 bodyPartToBlock docx (Tbl cap _ look (r:rs)) =
