@@ -1,6 +1,24 @@
-module Text.Pandoc.DocX.Parser
-       where
-
+module Text.Pandoc.DocX.Parser ( DocX(..)
+                               , Document(..)
+                               , Body(..)
+                               , BodyPart(..)
+                               , ParPart(..)
+                               , Run(..)
+                               , Notes
+                               , Numbering
+                               , Relationship
+                               , Media
+                               , RunStyle(..)
+                               , ParagraphStyle(..)
+                               , Row(..)
+                               , RowStyle(..)
+                               , Cell(..)
+                               , getFootNote
+                               , getEndNote
+                               , lookupLevel
+                               , lookupRelationship
+                               , archiveToDocX
+                               ) where
 import Codec.Archive.Zip
 import Text.XML.Light
 import Data.Maybe
