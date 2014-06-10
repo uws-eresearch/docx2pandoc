@@ -415,7 +415,8 @@ data ParPart = PlainRun Run
 
 data Run = Run RunStyle String
          | Footnote String 
-         | Endnote String 
+         | Endnote String
+         | LnBrk
            deriving Show
 
 data RunStyle = RunStyle { isBold :: Bool
@@ -485,7 +486,12 @@ elemToRun ns element
               findChild (QName "t" (lookup "w" ns) (Just "w")) element
               of
                 Just t -> Just $ Run (elemToRunStyle ns element) (strContent t)
-                Nothing -> Just $ Run (elemToRunStyle ns element) ""
+                Nothing ->
+                  case
+                    findChild (QName "br" (lookup "w" ns) (Just "w")) element
+                  of
+                    Just elem -> Just LnBrk
+                    Nothing -> Just $ Run (elemToRunStyle ns element) ""
 elemToRun _ _ = Nothing
 
 elemToDrawing :: NameSpaces -> Element -> Maybe ParPart
