@@ -38,10 +38,11 @@ onto pandoc's AST.
 
 So the reader works in a few steps (glossing over some subtleties):
 
- 1. Reads the xml and converts it into a pandoc type that mirrors the
-    docx structure (this is defined in the file `Parser.hs`, if you're
-    interested). It doesn't keep anywhere close to all the info, but
-    it tries to keep most of the stuff that will be useful for pandoc.
+ 1. Reads the xml and converts it into a haskell `DocX` type that
+    mirrors the docx structure (this is defined in the file
+    `Parser.hs`, if you're interested). It doesn't keep anywhere close
+    to all the info, but it tries to keep most of the stuff that will
+    be useful for pandoc, or could be useful down the line.
 
  2. Convert that into a legal, but weird pandoc format. This will have
     a *lot* of `div`s and `span`s, mirroring the run styles. These
