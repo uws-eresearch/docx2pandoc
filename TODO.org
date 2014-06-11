@@ -11,7 +11,8 @@
   - [X] Internal link to a section heading
   - [ ] Internal link to a bookmark.
   - [ ] Make embedding images a user option.
+  - [ ] Make parsing indents as block quotes a user option.
   - [X] Hard line breaks
-  - [ ] Copy trailing space out of spans (word users usually close
+  - [X] Move trailing space out of spans (word users usually close
     italics or whatever after they type a space, and then start to
     mistype the next word).
