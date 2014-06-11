@@ -10,7 +10,6 @@ import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Char (isSpace)
 import Data.List (delete, isPrefixOf, (\\), intersect)
 import Text.Pandoc
-import Text.Pandoc.Shared (normalize)
 import Text.Pandoc.UTF8 (toString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
@@ -70,42 +69,51 @@ runElemToString (LnBrk) = ['\n']
 runElemsToString :: [RunElem] -> String
 runElemsToString = concatMap runElemToString
 
-runToInline :: DocX -> Run -> Inline
-runToInline _ (Run rs runElems) 
+strNormalize :: [Inline] -> [Inline]
+strNormalize [] = []
+strNormalize ((Str s) : (Str s') : l) = strNormalize ((Str (s++s')) : l)
+strNormalize (il:ils) = il : (strNormalize ils)
+
+runToInlines :: DocX -> Run -> [Inline]
+runToInlines _ (Run rs runElems) 
   | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
-    Span (runStyleToSpanAttr rs) [Str (runElemsToString runElems)]
-  | otherwise =  Span (runStyleToSpanAttr rs) (concatMap runElemToInlines runElems)
-runToInline docx@(DocX _ notes _ _ _ ) (Footnote fnId) =
+    case runStyleToSpanAttr rs == ("", [], []) of
+      True -> [Str (runElemsToString runElems)]
+      False -> [Span (runStyleToSpanAttr rs) [Str (runElemsToString runElems)]]
+  | otherwise = case runStyleToSpanAttr rs == ("", [], []) of
+      True -> concatMap runElemToInlines runElems
+      False -> [Span (runStyleToSpanAttr rs) (concatMap runElemToInlines runElems)]
+runToInlines docx@(DocX _ notes _ _ _ ) (Footnote fnId) =
   case (getFootNote fnId notes) of
     Just bodyParts ->
-      Note [Div ("", ["footnote"], []) (map (bodyPartToBlock docx) bodyParts)]
+      [Note [Div ("", ["footnote"], []) (map (bodyPartToBlock docx) bodyParts)]]
     Nothing        ->
-      Note [Div ("", ["footnote"], []) []]
-runToInline docx@(DocX _ notes _ _ _) (Endnote fnId) =
+      [Note [Div ("", ["footnote"], []) []]]
+runToInlines docx@(DocX _ notes _ _ _) (Endnote fnId) =
   case (getEndNote fnId notes) of
     Just bodyParts ->
-      Note [Div ("", ["endnote"], []) (map (bodyPartToBlock docx) bodyParts)]
+      [Note [Div ("", ["endnote"], []) (map (bodyPartToBlock docx) bodyParts)]]
     Nothing        ->
-      Note [Div ("", ["endnote"], []) []]
+      [Note [Div ("", ["endnote"], []) []]]
 
-parPartToInline :: DocX -> ParPart -> Inline
-parPartToInline docx (PlainRun r) = runToInline docx r
-parPartToInline (DocX _ _ _ rels _) (Drawing relid) =
+parPartToInlines :: DocX -> ParPart -> [Inline]
+parPartToInlines docx (PlainRun r) = runToInlines docx r
+parPartToInlines (DocX _ _ _ rels _) (Drawing relid) =
   case lookupRelationship relid rels of
-    Just target -> Image [] (combine "word" target, "")
-    Nothing     -> Image [] ("", "")
-parPartToInline docx (InternalHyperLink anchor runs) =
-  Link (map (runToInline docx) runs) (anchor, "")
-parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
+    Just target -> [Image [] (combine "word" target, "")]
+    Nothing     -> [Image [] ("", "")]
+parPartToInlines docx (InternalHyperLink anchor runs) =
+  [Link (concatMap (runToInlines docx) runs) (anchor, "")]
+parPartToInlines docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
   case lookupRelationship relid rels of
     Just target ->
-      Link (map (runToInline docx) runs) (target, "")
+      [Link (concatMap (runToInlines docx) runs) (target, "")]
     Nothing ->
-      Link (map (runToInline docx) runs) ("", "")
+      [Link (concatMap (runToInlines docx) runs) ("", "")]
 
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
-  normalize $
+  strNormalize $
   bottomUp spanRemove $
   --
   -- We're going to skip data-uri's for now. It should be an option,
@@ -115,7 +123,7 @@ parPartsToInlines docx parparts =
   bottomUp spanCorrect $
   bottomUp spanTrim $
   bottomUp spanReduce $
-  map (parPartToInline docx) parparts
+  concatMap (parPartToInlines docx) parparts
 
 cellToBlocks :: DocX -> Cell -> [Block]
 cellToBlocks docx (Cell bps) = map (bodyPartToBlock docx) bps
