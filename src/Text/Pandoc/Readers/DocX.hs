@@ -1,11 +1,11 @@
-module Text.Pandoc.DocX.Pandoc
+module Text.Pandoc.Readers.DocX
        ( archiveToBlocks
        ) where
 
 import Codec.Archive.Zip (Archive)
 import Text.Pandoc.MIME (getMimeType)
-import Text.Pandoc.DocX.Parser
-import Text.Pandoc.DocX.ItemLists
+import Text.Pandoc.Readers.DocX.Parser
+import Text.Pandoc.Readers.DocX.Lists
 import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Char (isSpace)
 import Data.List (delete, isPrefixOf, (\\), intersect)

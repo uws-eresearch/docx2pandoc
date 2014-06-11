@@ -1,25 +1,25 @@
-module Text.Pandoc.DocX.Parser ( DocX(..)
-                               , Document(..)
-                               , Body(..)
-                               , BodyPart(..)
-                               , TblLook(..)
-                               , ParPart(..)
-                               , Run(..)
-                               , RunElem(..)
-                               , Notes
-                               , Numbering
-                               , Relationship
-                               , Media
-                               , RunStyle(..)
-                               , ParagraphStyle(..)
-                               , Row(..)
-                               , Cell(..)
-                               , getFootNote
-                               , getEndNote
-                               , lookupLevel
-                               , lookupRelationship
-                               , archiveToDocX
-                               ) where
+module Text.Pandoc.Readers.DocX.Parser ( DocX(..)
+                                       , Document(..)
+                                       , Body(..)
+                                       , BodyPart(..)
+                                       , TblLook(..)
+                                       , ParPart(..)
+                                       , Run(..)
+                                       , RunElem(..)
+                                       , Notes
+                                       , Numbering
+                                       , Relationship
+                                       , Media
+                                       , RunStyle(..)
+                                       , ParagraphStyle(..)
+                                       , Row(..)
+                                       , Cell(..)
+                                       , getFootNote
+                                       , getEndNote
+                                       , lookupLevel
+                                       , lookupRelationship
+                                       , archiveToDocX
+                                       ) where
 import Codec.Archive.Zip
 import Text.XML.Light
 import Data.Maybe

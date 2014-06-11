@@ -1,5 +1,5 @@
-module Text.Pandoc.DocX.ItemLists ( blocksToBullets
-                                  , blocksToDefinitions) where
+module Text.Pandoc.Readers.DocX.Lists ( blocksToBullets
+                                      , blocksToDefinitions) where
 
 import Text.Pandoc.JSON
 import Text.Pandoc.Shared (trim)

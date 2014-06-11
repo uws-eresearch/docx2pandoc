@@ -1,4 +1,4 @@
-import Text.Pandoc.DocX.Pandoc
+import Text.Pandoc.Readers.DocX
 import Codec.Archive.Zip
 import qualified Data.ByteString.Lazy as B
 import Text.Pandoc.JSON
