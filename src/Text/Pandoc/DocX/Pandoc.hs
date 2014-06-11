@@ -59,12 +59,22 @@ blockQuoteDivs = ["Quote", "BlockQuote"]
 codeDivs :: [String]
 codeDivs = ["SourceCode"]
 
+runElemToInlines :: RunElem -> [Inline]
+runElemToInlines (TextRun s) = strToInlines s
+runElemToInlines (LnBrk) = [LineBreak]
+
+runElemToString :: RunElem -> String
+runElemToString (TextRun s) = s
+runElemToString (LnBrk) = ['\n']
+
+runElemsToString :: [RunElem] -> String
+runElemsToString = concatMap runElemToString
+
 runToInline :: DocX -> Run -> Inline
-runToInline _ LnBrk = LineBreak
-runToInline _ (Run rs s) 
+runToInline _ (Run rs runElems) 
   | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
-    Span (runStyleToSpanAttr rs) [Str s]
-  | otherwise =  Span (runStyleToSpanAttr rs) (strToInlines s)
+    Span (runStyleToSpanAttr rs) [Str (runElemsToString runElems)]
+  | otherwise =  Span (runStyleToSpanAttr rs) (concatMap runElemToInlines runElems)
 runToInline docx@(DocX _ notes _ _ _ ) (Footnote fnId) =
   case (getFootNote fnId notes) of
     Just bodyParts ->

@@ -5,6 +5,7 @@ module Text.Pandoc.DocX.Parser ( DocX(..)
                                , TblLook(..)
                                , ParPart(..)
                                , Run(..)
+                               , RunElem(..)
                                , Notes
                                , Numbering
                                , Relationship
@@ -432,11 +433,13 @@ data ParPart = PlainRun Run
              | Drawing String
              deriving Show
 
-data Run = Run RunStyle String
+data Run = Run RunStyle [RunElem]
          | Footnote String 
          | Endnote String
-         | LnBrk
            deriving Show
+
+data RunElem = TextRun String | LnBrk
+             deriving Show
 
 data RunStyle = RunStyle { isBold :: Bool
                          , isItalic :: Bool
@@ -457,7 +460,7 @@ defaultRunStyle = RunStyle { isBold = False
                            , isSubScript = False
                            , underline = Nothing
                            , rStyle = Nothing
-                           }
+                           } 
 
 elemToRunStyle :: NameSpaces -> Element -> RunStyle
 elemToRunStyle ns element =
@@ -501,17 +504,28 @@ elemToRun ns element
             findAttr (QName "id" (lookup "w" ns) (Just "w"))
           of
             Just s -> Just $ Endnote s 
-            Nothing ->  case
-              findChild (QName "t" (lookup "w" ns) (Just "w")) element
-              of
-                Just t -> Just $ Run (elemToRunStyle ns element) (strContent t)
-                Nothing ->
-                  case
-                    findChild (QName "br" (lookup "w" ns) (Just "w")) element
-                  of
-                    Just _ -> Just LnBrk
-                    Nothing -> Just $ Run (elemToRunStyle ns element) ""
+            Nothing ->  Just $
+                        Run (elemToRunStyle ns element)
+                        (elemToRunElems ns element)
 elemToRun _ _ = Nothing
+
+elemToRunElem :: NameSpaces -> Element -> Maybe RunElem
+elemToRunElem ns element
+  | qName (elName element) == "t" &&
+    qURI (elName element) == (lookup "w" ns) =
+      Just $ TextRun (strContent element)
+  | qName (elName element) == "br" &&
+    qURI (elName element) == (lookup "w" ns) =
+      Just $ LnBrk
+  | otherwise = Nothing
+
+
+elemToRunElems :: NameSpaces -> Element -> [RunElem]
+elemToRunElems ns element
+  | qName (elName element) == "r" &&
+    qURI (elName element) == (lookup "w" ns) =
+      mapMaybe (elemToRunElem ns) (elChildren element)
+  | otherwise = []
 
 elemToDrawing :: NameSpaces -> Element -> Maybe ParPart
 elemToDrawing ns element
