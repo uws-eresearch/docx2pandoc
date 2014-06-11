@@ -102,27 +102,35 @@ separateBlocks' b acc = acc ++ [[b]]
 separateBlocks :: [Block] -> [[Block]]
 separateBlocks blks = foldr separateBlocks' [[]] (reverse blks)
 
-flatToBullets' :: Integer -> [(Integer, Block)] -> [Block]
+flatToBullets' :: Integer -> [Block] -> [Block]
 flatToBullets' _ [] = []
-flatToBullets' num xs@((n, b) : elems)
-  | n == num = b : (flatToBullets' num elems)
+flatToBullets' num xs@(b : elems)
+  | getLevelN b == num = b : (flatToBullets' num elems)
   | otherwise = 
-    let (children, remaining) = span (\(m, _) -> m > num) xs
+    let bNumId = getNumIdN b
+        bLevel = getLevelN b
+        (children, remaining) =
+          span
+          (\b' ->
+            ((getLevelN b') > bLevel ||
+             ((getLevelN b') == bLevel && (getNumIdN b') == bNumId)))
+          xs
     in
      case getListType b of
        Just (Enumerated attr) ->
-         (OrderedList attr (separateBlocks $ flatToBullets' n children)) :
+         (OrderedList attr (separateBlocks $ flatToBullets' bLevel children)) :
          (flatToBullets' num remaining)
        _ ->
-         (BulletList (separateBlocks $ flatToBullets' n children)) :
+         (BulletList (separateBlocks $ flatToBullets' bLevel children)) :
          (flatToBullets' num remaining)
-flatToBullets :: [(Integer, Block)] -> [Block]
+
+flatToBullets :: [Block] -> [Block]
 flatToBullets elems = flatToBullets' (-1) elems
 
 blocksToBullets :: [Block] -> [Block]
 blocksToBullets blks =
   -- bottomUp removeListItemDivs $ 
-  flatToBullets $ map (\b -> (getLevelN b, b)) (handleListParagraphs blks)
+  flatToBullets $ (handleListParagraphs blks)
 
 
 plainParaInlines :: Block -> [Inline]
