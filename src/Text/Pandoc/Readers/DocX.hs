@@ -261,8 +261,8 @@ spanCorrect' (Span (ident, classes, kvs) ils)
       [Strong $ spanCorrect' $ Span (ident, (delete "strong" classes), kvs) ils]
   | "smallcaps" `elem` classes =
       [SmallCaps $ spanCorrect' $ Span (ident, (delete "smallcaps" classes), kvs) ils]
-  | "strikeout" `elem` classes =
-      [Strikeout $ spanCorrect' $ Span (ident, (delete "strikeout" classes), kvs) ils]
+  | "strike" `elem` classes =
+      [Strikeout $ spanCorrect' $ Span (ident, (delete "strike" classes), kvs) ils]
   | "superscript" `elem` classes =
       [Superscript $ spanCorrect' $ Span (ident, (delete "superscript" classes), kvs) ils]
   | "subscript" `elem` classes =
