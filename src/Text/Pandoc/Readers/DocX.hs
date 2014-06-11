@@ -113,6 +113,7 @@ parPartsToInlines docx parparts =
   --
   --bottomUp (makeImagesSelfContained docx) $
   bottomUp spanCorrect $
+  bottomUp spanTrim $
   bottomUp spanReduce $
   map (parPartToInline docx) parparts
 
@@ -237,6 +238,18 @@ spanRemove' il = [il]
 
 spanRemove :: [Inline] -> [Inline]
 spanRemove = concatMap spanRemove'
+
+spanTrim' :: Inline -> [Inline]
+spanTrim' il@(Span _ []) = [il]
+spanTrim' (Span attr ils)
+  | head ils == Space && last ils == Space =
+    [Space, Span attr (init $ tail ils), Space]
+  | head ils == Space = [Space, Span attr (tail ils)]
+  | last ils == Space = [Span attr (init ils), Space]
+spanTrim' il = [il]
+
+spanTrim :: [Inline] -> [Inline]
+spanTrim = concatMap spanTrim'
 
 spanCorrect' :: Inline -> [Inline]
 spanCorrect' (Span ("", [], []) ils) = ils
