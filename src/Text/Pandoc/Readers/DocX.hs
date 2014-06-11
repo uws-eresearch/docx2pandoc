@@ -185,6 +185,7 @@ makeImagesSelfContained _ inline = inline
 
 bodyToBlocks :: DocX -> Body -> [Block]
 bodyToBlocks docx (Body bps) =
+  bottomUp removeEmptyPars $
   bottomUp divRemove $
   bottomUp divCorrect $
   bottomUp divReduce $
@@ -275,6 +276,9 @@ spanCorrect' il = [il]
 spanCorrect :: [Inline] -> [Inline]
 spanCorrect = concatMap spanCorrect'
 
+removeEmptyPars :: [Block] -> [Block]
+removeEmptyPars blks = filter (\b -> b /= (Para [])) blks
+
 divReduce :: [Block] -> [Block]
 divReduce [] = []
 divReduce ((Div (id1, classes1, kvs1) blks1) : blks)
@@ -346,14 +350,19 @@ divRemove' blk = [blk]
 
 divRemove :: [Block] -> [Block]
 divRemove = concatMap divRemove'
-
                                                  
 divCorrect' :: Block -> [Block]
-divCorrect' (Div (ident, classes, kvs) blks)
+divCorrect' b@(Div (ident, classes, kvs) blks)
   | (not . null) (blockQuoteDivs `intersect` classes) =
     [BlockQuote [Div (ident, classes \\ blockQuoteDivs, kvs) blks]]
   | (not . null) (codeDivs `intersect` classes) =
     [CodeBlock (ident, (classes \\ codeDivs), kvs) (init $ unlines $ map blkToCode blks)]
+  | otherwise =
+      case lookup "indent" kvs of
+        Just "0" -> [Div (ident, classes, filter (\kv -> fst kv /= "indent") kvs) blks]
+        Just _   ->
+          [BlockQuote [Div (ident, classes, filter (\kv -> fst kv /= "indent") kvs) blks]]
+        Nothing  -> [b]
 divCorrect' blk = [blk]
 
 divCorrect :: [Block] -> [Block]
