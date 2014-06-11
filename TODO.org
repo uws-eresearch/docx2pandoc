@@ -5,10 +5,10 @@
   - [X] Multiparagraph list items (using unitemized paragraphs)
   - [X] Multiparagraph list items (using invisible bullets)
   - [ ] Separate adjacent lists.
-  - [-] Table header rows
+  - [X] Table header rows
   - [ ] Horizontal alignment in table columns
   - [ ] Table columns widths
   - [X] Internal link to a section heading
   - [ ] Internal link to a bookmark.
   - [ ] Make embedding images a user option.
-  - [-] Hard line breaks
+  - [X] Hard line breaks
