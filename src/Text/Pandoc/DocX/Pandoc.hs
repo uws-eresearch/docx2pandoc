@@ -10,6 +10,7 @@ import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Char (isSpace)
 import Data.List (delete, isPrefixOf, (\\), intersect)
 import Text.Pandoc
+import Text.Pandoc.Shared (normalize)
 import Text.Pandoc.UTF8 (toString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as B
@@ -39,16 +40,15 @@ parStyleToDivAttr pPr = ("",
                             Nothing -> []
                          )
 
-
 strToInlines :: String -> [Inline]
 strToInlines "" = []
 strToInlines s  =
   let (v, w) = span (not . isSpace) s
       (_, y) = span isSpace w
   in
-      case null w of
-        True  -> [Str v]
-        False -> (Str v) : Space : (strToInlines y)
+   case null w of
+     True  -> [Str v]
+     False -> (Str v) : Space : (strToInlines y)
 
 codeSpans :: [String]
 codeSpans = ["VerbatimChar"]
@@ -105,6 +105,7 @@ parPartToInline docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
 
 parPartsToInlines :: DocX -> [ParPart] -> [Inline]
 parPartsToInlines docx parparts =
+  normalize $
   bottomUp spanRemove $
   --
   -- We're going to skip data-uri's for now. It should be an option,
