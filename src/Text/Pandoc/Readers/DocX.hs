@@ -150,6 +150,7 @@ runElemsToString = concatMap runElemToString
 
 strNormalize :: [Inline] -> [Inline]
 strNormalize [] = []
+strNormalize (Str "" : ils) = strNormalize ils
 strNormalize ((Str s) : (Str s') : l) = strNormalize ((Str (s++s')) : l)
 strNormalize (il:ils) = il : (strNormalize ils)
 
