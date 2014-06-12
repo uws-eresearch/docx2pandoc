@@ -28,6 +28,47 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 Conversion of DocX type (defined in Text.Pandoc.Readers.DocX.Parser)
 to 'Pandoc' document.  -}
 
+{-
+Current state of implementation of DocX entities ([x] means
+implemented, [-] means partially implemented):
+
+* Blocks
+
+  - [X] Para
+  - [X] CodeBlock (styled with `SourceCode`)
+  - [X] BlockQuote (styled with `Quote`, `BlockQuote`, or, optionally,
+    indented)
+  - [X] OrderedList
+  - [X] BulletList
+  - [X] DefinitionList (styled with adjacent `DefinitionTerm` and `Definition`)
+  - [X] Header (styled with `Heading#`)
+  - [ ] HorizontalRule
+  - [-] Table (column widths and alignments not yet implemented)
+
+* Inlines
+
+  - [X] Str
+  - [X] Emph (From italics. `underline` currently read as span. In
+    future, it might optionally be emph as well)
+  - [X] Strong
+  - [X] Strikeout
+  - [X] Superscript
+  - [X] Subscript
+  - [X] SmallCaps
+  - [ ] Quoted
+  - [ ] Cite
+  - [X] Code (styled with `VerbatimChar`)
+  - [X] Space
+  - [X] LineBreak (these are invisible in Word: entered with Shift-Return)
+  - [ ] Math
+  - [-] Link (Currently implemented: link to external website, and
+    internal link to header. Not yet implemented: internal link to
+    arbitrary anchor)
+  - [-] Image (Links to path in archive. Future option for
+    data-encoded URI likely.)
+  - [X] Note (Footnotes and Endnotes are silently combined.)
+-}
+
 module Text.Pandoc.Readers.DocX
        ( archiveToBlocks
        ) where
