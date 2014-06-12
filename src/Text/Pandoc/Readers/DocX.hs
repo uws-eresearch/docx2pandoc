@@ -87,6 +87,14 @@ import qualified Data.ByteString.Lazy as B
 import Data.ByteString.Base64 (encode)
 import System.FilePath (combine)
 
+readDocX :: ReaderOptions
+         -> B.ByteString
+         -> Pandoc
+readDocX opts bytes =
+  case archiveToDocX (toArchive bytes) of
+    Just docx -> Pandoc nullMeta (docxToBlocks opts docx)
+    Nothing   -> error $ "couldn't parse docx file"
+
 runStyleToSpanAttr :: RunStyle -> (String, [String], [(String, String)])
 runStyleToSpanAttr rPr = ("",
                           mapMaybe id [
@@ -277,14 +285,6 @@ bodyToBlocks opts docx (Body bps) =
   bottomUp blocksToDefinitions $
   blocksToBullets $
   map (bodyPartToBlock opts docx) bps
-
-readDocX :: ReaderOptions
-         -> B.ByteString
-         -> Pandoc
-readDocX opts bytes =
-  case archiveToDocX (toArchive bytes) of
-    Just docx -> Pandoc nullMeta (docxToBlocks opts docx)
-    Nothing   -> error $ "couldn't parse docx file"
 
 docxToBlocks :: ReaderOptions -> DocX -> [Block]
 docxToBlocks opts d@(DocX (Document _ body) _ _ _ _) = bodyToBlocks opts d body
