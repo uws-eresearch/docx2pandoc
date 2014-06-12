@@ -70,8 +70,7 @@ implemented, [-] means partially implemented):
 -}
 
 module Text.Pandoc.Readers.DocX
-       ( archiveToBlocks
-       , readDocX
+       ( readDocX
        ) where
 
 import Codec.Archive.Zip
@@ -278,11 +277,6 @@ bodyToBlocks opts docx (Body bps) =
   bottomUp blocksToDefinitions $
   blocksToBullets $
   map (bodyPartToBlock opts docx) bps
-
-archiveToBlocks :: Archive -> Maybe [Block]
-archiveToBlocks archive = do
-  docx <- archiveToDocX archive
-  return $ docxToBlocks def docx
 
 readDocX :: ReaderOptions
          -> B.ByteString
