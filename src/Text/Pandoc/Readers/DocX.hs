@@ -153,13 +153,8 @@ strNormalize (Str "" : ils) = strNormalize ils
 strNormalize ((Str s) : (Str s') : l) = strNormalize ((Str (s++s')) : l)
 strNormalize (il:ils) = il : (strNormalize ils)
 
-textBlockNormalize :: Block -> Block
-textBlockNormalize (Para ils) = Para $ strNormalize ils
-textBlockNormalize (Plain ils) = Plain $ strNormalize ils
-textBlockNormalize blk = blk
-
 runToInlines :: ReaderOptions -> DocX -> Run -> [Inline]
-runToInlines opts _ (Run rs runElems) 
+runToInlines _ _ (Run rs runElems) 
   | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
     case runStyleToSpanAttr rs == ("", [], []) of
       True -> [Str (runElemsToString runElems)]
@@ -182,9 +177,9 @@ runToInlines opts docx@(DocX _ notes _ _ _) (Endnote fnId) =
 
 parPartToInlines :: ReaderOptions -> DocX -> ParPart -> [Inline]
 parPartToInlines opts docx (PlainRun r) = runToInlines opts docx r
-parPartToInlines opts docx (BookMark _ anchor) =
+parPartToInlines _ _ (BookMark _ anchor) =
   [Span (anchor, ["anchor"], []) []]
-parPartToInlines opts (DocX _ _ _ rels _) (Drawing relid) =
+parPartToInlines _ (DocX _ _ _ rels _) (Drawing relid) =
   case lookupRelationship relid rels of
     Just target -> [Image [] (combine "word" target, "")]
     Nothing     -> [Image [] ("", "")]
@@ -203,7 +198,7 @@ isAnchorSpan (Span (ident, classes, kvs) ils) =
   classes == ["anchor"] &&
   null kvs &&
   null ils
-isAnchorSpan il = False
+isAnchorSpan _ = False
 
 makeHeaderAnchors :: Block -> Block
 makeHeaderAnchors h@(Header n (_, classes, kvs) ils) =
@@ -256,7 +251,7 @@ bodyPartToBlock opts docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parpa
    Div
    ("", ["list-item"], kvs)
    [bodyPartToBlock opts docx (Paragraph pPr parparts)]
-bodyPartToBlock opts _ (Tbl _ _ _ []) =
+bodyPartToBlock _ _ (Tbl _ _ _ []) =
   Para []
 bodyPartToBlock opts docx (Tbl cap _ look (r:rs)) =
   let caption = strToInlines cap
