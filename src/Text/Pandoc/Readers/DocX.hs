@@ -218,8 +218,6 @@ makeHeaderAnchors blk = blk
 
 parPartsToInlines :: ReaderOptions -> DocX -> [ParPart] -> [Inline]
 parPartsToInlines opts docx parparts =
-  strNormalize $
-  -- bottomUp spanRemove $
   --
   -- We're going to skip data-uri's for now. It should be an option,
   -- not mandatory.
