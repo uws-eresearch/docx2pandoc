@@ -17,7 +17,7 @@ def output_with_options(infile, expected_output_file, options=None):
     with open(expected_output_file) as fp:
         return (pd_out.strip(), fp.read().strip())
 
-class TestDocx2PandocOutput(unittest.TestCase):
+class NativeOutput(unittest.TestCase):
 
     def test_inline_formatting(self):
         """Test inline formatting"""
