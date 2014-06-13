@@ -341,6 +341,8 @@ ilToCode (Str s) = s
 ilToCode _ = ""
 
 spanRemove' :: Inline -> [Inline]
+spanRemove' s@(Span (_, classes, _) [])
+  | classes == ["anchor"] = [s]
 spanRemove' (Span (_, _, kvs) ils) =
   case lookup "underline" kvs of
     Just val -> [Span ("", [], [("underline", val)]) ils]
