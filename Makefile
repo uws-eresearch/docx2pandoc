@@ -15,6 +15,10 @@ all: docx2pandoc
 clean:
 	rm -f $(DOCX2PANDOC:.hs=) $(SRC_HS_FILES:.hs=.hi) $(SRC_HS_FILES:.hs=.o)
 
+.PHONY: tests
+tests: docx2pandoc
+	cd test; python2 test.py
+
 docx2pandoc: $(SRC_HS_FILES)
 	ghc -isrc src/$(DOCX2PANDOC) --make $(GHC_FLAGS)
 	mv src/$(DOCX2PANDOC:.hs=) .
