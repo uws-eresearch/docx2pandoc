@@ -1,3 +1,5 @@
 docx2pandoc
 *.hi
 *.o
+*.pyc
+__pycache__/*
