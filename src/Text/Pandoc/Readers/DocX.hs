@@ -342,8 +342,7 @@ ilToCode _ = ""
 spanRemove' :: Inline -> [Inline]
 spanRemove' s@(Span (id, classes, _) [])
   -- "_GoBack" is automatically inserted. We don't want to keep it.
-  | classes == ["anchor"] && id /= "_GoBack" = 
-    [s]
+  | classes == ["anchor"] && id /= "_GoBack" = [s]
 spanRemove' (Span (_, _, kvs) ils) =
   case lookup "underline" kvs of
     Just val -> [Span ("", [], [("underline", val)]) ils]
