@@ -37,7 +37,7 @@ implemented, [-] means partially implemented):
   - [X] Para
   - [X] CodeBlock (styled with `SourceCode`)
   - [X] BlockQuote (styled with `Quote`, `BlockQuote`, or, optionally,
-    indented)
+        indented)
   - [X] OrderedList
   - [X] BulletList
   - [X] DefinitionList (styled with adjacent `DefinitionTerm` and `Definition`)
@@ -49,7 +49,7 @@ implemented, [-] means partially implemented):
 
   - [X] Str
   - [X] Emph (From italics. `underline` currently read as span. In
-    future, it might optionally be emph as well)
+        future, it might optionally be emph as well)
   - [X] Strong
   - [X] Strikeout
   - [X] Superscript
@@ -61,11 +61,10 @@ implemented, [-] means partially implemented):
   - [X] Space
   - [X] LineBreak (these are invisible in Word: entered with Shift-Return)
   - [ ] Math
-  - [-] Link (Currently implemented: link to external website, and
-    internal link to header. Not yet implemented: internal link to
-    arbitrary anchor)
+  - [X] Link (links to an arbitrary bookmark create a span with the target as
+        id and "anchor" class)
   - [-] Image (Links to path in archive. Future option for
-    data-encoded URI likely.)
+        data-encoded URI likely.)
   - [X] Note (Footnotes and Endnotes are silently combined.)
 -}
 

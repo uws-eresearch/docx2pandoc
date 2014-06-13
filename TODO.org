@@ -9,7 +9,7 @@
   - [ ] Horizontal alignment in table columns
   - [ ] Table columns widths
   - [X] Internal link to a section heading
-  - [ ] Internal link to a bookmark.
+  - [X] Internal link to a bookmark.
   - [ ] Make embedding images a user option.
   - [ ] Make parsing indents as block quotes a user option.
   - [X] Hard line breaks
