@@ -154,6 +154,11 @@ strNormalize (Str "" : ils) = strNormalize ils
 strNormalize ((Str s) : (Str s') : l) = strNormalize ((Str (s++s')) : l)
 strNormalize (il:ils) = il : (strNormalize ils)
 
+textBlockNormalize :: Block -> Block
+textBlockNormalize (Para ils) = Para $ strNormalize ils
+textBlockNormalize (Plain ils) = Plain $ strNormalize ils
+textBlockNormalize blk = blk
+
 runToInlines :: ReaderOptions -> DocX -> Run -> [Inline]
 runToInlines opts _ (Run rs runElems) 
   | isJust (rStyle rs) && (fromJust (rStyle rs)) `elem` codeSpans =
@@ -178,6 +183,8 @@ runToInlines opts docx@(DocX _ notes _ _ _) (Endnote fnId) =
 
 parPartToInlines :: ReaderOptions -> DocX -> ParPart -> [Inline]
 parPartToInlines opts docx (PlainRun r) = runToInlines opts docx r
+parPartToInlines opts docx (BookMark _ anchor) =
+  [Span (anchor, ["anchor"], []) []]
 parPartToInlines opts (DocX _ _ _ rels _) (Drawing relid) =
   case lookupRelationship relid rels of
     Just target -> [Image [] (combine "word" target, "")]
@@ -191,10 +198,28 @@ parPartToInlines opts docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
     Nothing ->
       [Link (concatMap (runToInlines opts docx) runs) ("", "")]
 
+isAnchorSpan :: Inline -> Bool
+isAnchorSpan (Span (ident, classes, kvs) ils) =
+  (not . null) ident &&
+  classes == ["anchor"] &&
+  null kvs &&
+  null ils
+isAnchorSpan il = False
+
+makeHeaderAnchors :: Block -> Block
+makeHeaderAnchors h@(Header n (_, classes, kvs) ils) =
+  case filter isAnchorSpan ils of
+    []   -> h
+    (x@(Span (ident, _, _) _) : xs) ->
+      Header n (ident, classes, kvs) (ils \\ (x:xs))
+    _ -> h
+makeHeaderAnchors blk = blk
+  
+
 parPartsToInlines :: ReaderOptions -> DocX -> [ParPart] -> [Inline]
 parPartsToInlines opts docx parparts =
   strNormalize $
-  bottomUp spanRemove $
+  -- bottomUp spanRemove $
   --
   -- We're going to skip data-uri's for now. It should be an option,
   -- not mandatory.
@@ -212,11 +237,7 @@ rowToBlocksList :: ReaderOptions -> DocX -> Row -> [[Block]]
 rowToBlocksList opts docx (Row cells) = map (cellToBlocks opts docx) cells
 
 bodyPartToBlock :: ReaderOptions -> DocX -> BodyPart -> Block
-bodyPartToBlock opts docx (Paragraph pPr (Just (_, target)) parparts) =
-  let (_, classes, kvs) = parStyleToDivAttr pPr
-  in
-   Div (target, classes, kvs) [Para (parPartsToInlines opts docx parparts)]
-bodyPartToBlock opts docx (Paragraph pPr Nothing parparts) =
+bodyPartToBlock opts docx (Paragraph pPr parparts) =
   Div (parStyleToDivAttr pPr) [Para (parPartsToInlines opts docx parparts)]
 bodyPartToBlock opts docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parparts) =
   let
@@ -237,7 +258,7 @@ bodyPartToBlock opts docx@(DocX _ _ numbering _ _) (ListItem pPr numId lvl parpa
   in
    Div
    ("", ["list-item"], kvs)
-   [bodyPartToBlock opts docx (Paragraph pPr Nothing parparts)]
+   [bodyPartToBlock opts docx (Paragraph pPr parparts)]
 bodyPartToBlock opts _ (Tbl _ _ _ []) =
   Para []
 bodyPartToBlock opts docx (Tbl cap _ look (r:rs)) =
@@ -279,7 +300,10 @@ makeImagesSelfContained _ inline = inline
 bodyToBlocks :: ReaderOptions -> DocX -> Body -> [Block]
 bodyToBlocks opts docx (Body bps) =
   bottomUp removeEmptyPars $
+  bottomUp strNormalize $ 
+  bottomUp spanRemove $ 
   bottomUp divRemove $
+  map (makeHeaderAnchors) $
   bottomUp divCorrect $
   bottomUp divReduce $
   bottomUp divCorrectPreReduce $

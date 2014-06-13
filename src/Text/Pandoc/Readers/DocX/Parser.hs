@@ -281,8 +281,8 @@ elemToBody ns element | qName (elName element) == "body" && qURI (elName element
   $ map (elemToBodyPart ns) $ filterChildrenName (isParOrTbl ns) element
 elemToBody _ _ = Nothing
 
-isRunOrLink :: NameSpaces -> QName ->  Bool
-isRunOrLink ns q = qName q `elem` ["r", "hyperlink"] &&
+isRunOrLinkOrBookmark :: NameSpaces -> QName ->  Bool
+isRunOrLinkOrBookmark ns q = qName q `elem` ["r", "hyperlink", "bookmarkStart"] &&
                    qURI q == (lookup "w" ns)
 
 elemToNumInfo :: NameSpaces -> Element -> Maybe (String, String)
@@ -299,35 +299,33 @@ elemToNumInfo ns element
         return (numId, lvl)
 elemToNumInfo _ _ = Nothing
 
-isBookMarkTag :: NameSpaces -> QName -> Bool
-isBookMarkTag ns q = qName q `elem` ["bookmarkStart", "bookmarkEnd"] &&
-                     qURI q == (lookup "w" ns)
+-- isBookMarkTag :: NameSpaces -> QName -> Bool
+-- isBookMarkTag ns q = qName q `elem` ["bookmarkStart", "bookmarkEnd"] &&
+--                      qURI q == (lookup "w" ns)
 
-parChildrenToBookmark :: NameSpaces -> [Element] -> BookMark
-parChildrenToBookmark ns (bms : bme : _)
-  | qName (elName bms) == "bookmarkStart" &&
-    qURI (elName bms) == (lookup "w" ns) &&
-    qName (elName bme) == "bookmarkEnd" &&
-    qURI (elName bme) == (lookup "w" ns) = do
-      bmId <- findAttr (QName "id" (lookup "w" ns) (Just "w")) bms
-      bmName <- findAttr (QName "name" (lookup "w" ns) (Just "w")) bms
-      return $ (bmId, bmName)
-parChildrenToBookmark _ _ = Nothing
+-- parChildrenToBookmark :: NameSpaces -> [Element] -> BookMark
+-- parChildrenToBookmark ns (bms : bme : _)
+--   | qName (elName bms) == "bookmarkStart" &&
+--     qURI (elName bms) == (lookup "w" ns) &&
+--     qName (elName bme) == "bookmarkEnd" &&
+--     qURI (elName bme) == (lookup "w" ns) = do
+--       bmId <- findAttr (QName "id" (lookup "w" ns) (Just "w")) bms
+--       bmName <- findAttr (QName "name" (lookup "w" ns) (Just "w")) bms
+--       return $ (bmId, bmName)
+-- parChildrenToBookmark _ _ = Nothing
 
 elemToBodyPart :: NameSpaces -> Element ->  Maybe BodyPart
 elemToBodyPart ns element
   | qName (elName element) == "p" &&
     qURI (elName element) == (lookup "w" ns) =
       let parstyle = elemToParagraphStyle ns element
-          bookmark = parChildrenToBookmark ns
-                     $ filterChildrenName (isBookMarkTag ns) element
           parparts = mapMaybe id
                      $ map (elemToParPart ns)
-                     $ filterChildrenName (isRunOrLink ns) element
+                     $ filterChildrenName (isRunOrLinkOrBookmark ns) element
       in
        case elemToNumInfo ns element of
          Just (numId, lvl) -> Just $ ListItem parstyle numId lvl parparts
-         Nothing -> Just $ Paragraph parstyle bookmark parparts
+         Nothing -> Just $ Paragraph parstyle parparts
   | qName (elName element) == "tbl" &&
     qURI (elName element) == (lookup "w" ns) =
       let
@@ -401,13 +399,11 @@ elemToParagraphStyle ns element =
     Nothing -> defaultParagraphStyle
 
 
-data BodyPart = Paragraph ParagraphStyle BookMark [ParPart]
+data BodyPart = Paragraph ParagraphStyle [ParPart]
               | ListItem ParagraphStyle String String [ParPart]
               | Tbl String TblGrid TblLook [Row]
 
               deriving Show
-
-type BookMark = Maybe (String, String) -- id, anchor
 
 type TblGrid = [Integer]
 
@@ -459,6 +455,7 @@ elemToCell ns element
 elemToCell _ _ = Nothing
 
 data ParPart = PlainRun Run
+             | BookMark BookMarkId Anchor
              | InternalHyperLink Anchor [Run]
              | ExternalHyperLink RelId [Run]
              | Drawing String
@@ -580,6 +577,12 @@ elemToParPart ns element
           r <- elemToRun ns element
           return $ PlainRun r
 elemToParPart ns element
+  | qName (elName element) == "bookmarkStart" &&
+    qURI (elName element) == (lookup "w" ns) = do
+      bmId <- findAttr (QName "id" (lookup "w" ns) (Just "w")) element
+      bmName <- findAttr (QName "name" (lookup "w" ns) (Just "w")) element
+      return $ BookMark bmId bmName
+elemToParPart ns element
   | qName (elName element) == "hyperlink" &&
     qURI (elName element) == (lookup "w" ns) =
       let runs = map fromJust $ filter isJust $ map (elemToRun ns)
@@ -596,5 +599,6 @@ elemToParPart _ _ = Nothing
 
 type Target = String
 type Anchor = String
+type BookMarkId = String
 type RelId = String
                
