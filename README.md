@@ -27,6 +27,15 @@ following, in your output directory
 unzip input.docx "word/media/*"
 ~~~
 
+Building
+--------
+
+Just `cd` into the `docx2pandoc` dir and run `make`. It doesn't
+require any libraries not required by `pandoc`, so if you can build
+that you should be fine.
+
+To run the test suite, just run `make tests`.
+
 Some words on how it works
 --------------------------
 
