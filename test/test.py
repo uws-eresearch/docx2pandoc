@@ -26,6 +26,13 @@ class NativeOutput(unittest.TestCase):
             "inline_formatting.native"
         ))
 
+    def test_unicode(self):
+        """Test unicode handling"""
+        self.assertEqual(*output_with_options(
+            "unicode.docx", 
+            "unicode.native"
+        ))
+
     def test_headers(self):
         """Test headers"""
         self.assertEqual(*output_with_options(
