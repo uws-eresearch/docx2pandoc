@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
    Stability   : alpha
    Portability : portable
 
-Conversion of DocX type (defined in Text.Pandoc.Readers.DocX.Parser)
+Conversion of DocX type (defined in Text.Pandoc.Readers.DocX.Parse)
 to 'Pandoc' document.  -}
 
 {-
@@ -76,7 +76,7 @@ import Codec.Archive.Zip
 import Text.Pandoc
 import Text.Pandoc.MIME (getMimeType)
 import Text.Pandoc.UTF8 (toString)
-import Text.Pandoc.Readers.DocX.Parser
+import Text.Pandoc.Readers.DocX.Parse
 import Text.Pandoc.Readers.DocX.Lists
 import Data.Maybe (mapMaybe, isJust, fromJust)
 import Data.Char (isSpace)

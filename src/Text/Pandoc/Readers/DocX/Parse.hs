@@ -17,7 +17,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 -}
 
 {- |
-   Module      : Text.Pandoc.Readers.DocX.Parser
+   Module      : Text.Pandoc.Readers.DocX.Parse
    Copyright   : Copyright (C) 2014 Jesse Rosenthal
    License     : GNU GPL, version 2 or above
 
@@ -29,7 +29,7 @@ Conversion of DocX archive into DocX haskell type
 -}
 
 
-module Text.Pandoc.Readers.DocX.Parser ( DocX(..)
+module Text.Pandoc.Readers.DocX.Parse (  DocX(..)
                                        , Document(..)
                                        , Body(..)
                                        , BodyPart(..)

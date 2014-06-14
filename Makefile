@@ -1,6 +1,6 @@
 DOCX2PANDOC = docx2pandoc.hs
 LIB_FILES = Text/Pandoc/MIME.hs \
-            Text/Pandoc/Readers/DocX/Parser.hs \
+            Text/Pandoc/Readers/DocX/Parse.hs \
 	    Text/Pandoc/Readers/DocX/Lists.hs \
             Text/Pandoc/Readers/DocX.hs
 HS_FILES = $(DOCX2PANDOC) $(LIB_FILES)
