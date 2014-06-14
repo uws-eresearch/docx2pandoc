@@ -73,7 +73,9 @@ module Text.Pandoc.Readers.DocX
        ) where
 
 import Codec.Archive.Zip
-import Text.Pandoc
+import Text.Pandoc.Definition
+import Text.Pandoc.Options
+import Text.Pandoc.Generic (bottomUp)
 import Text.Pandoc.MIME (getMimeType)
 import Text.Pandoc.UTF8 (toString)
 import Text.Pandoc.Readers.DocX.Parse
