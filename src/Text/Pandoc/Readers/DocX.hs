@@ -186,7 +186,7 @@ parPartToInlines _ (DocX _ _ _ rels _) (Drawing relid) =
     Just target -> [Image [] (combine "word" target, "")]
     Nothing     -> [Image [] ("", "")]
 parPartToInlines opts docx (InternalHyperLink anchor runs) =
-  [Link (concatMap (runToInlines opts docx) runs) (anchor, "")]
+  [Link (concatMap (runToInlines opts docx) runs) ('#' : anchor, "")]
 parPartToInlines opts docx@(DocX _ _ _ rels _) (ExternalHyperLink relid runs) =
   case lookupRelationship relid rels of
     Just target ->
